@@ -1,14 +1,21 @@
 // T-01 · Esqueleto PWA: carga, pestañas, fuentes locales, instalabilidad y apertura sin señal.
 import { test, expect } from '@playwright/test';
+import { simularSupabase, entrar, USUARIOS } from './simulador.js';
+
+// La app pide sesión: cada prueba entra con el asesor ficticio usando el simulador de Supabase.
+test.beforeEach(async ({ page }) => {
+  await simularSupabase(page);
+  await page.goto('index.html');
+  await entrar(page, USUARIOS.asesor);
+  await expect(page.locator('#pantalla-app')).toBeVisible();
+});
 
 test('carga a 375×812 sin desbordes y con las 4 pestañas', async ({ page }) => {
-  await page.goto('index.html');
-  await expect(page.locator('#titulo-vista')).toHaveText('Hola');
-  await expect(page.locator('#version-app')).toHaveText(/^v\d+/, { useInnerText: false });
+  await expect(page.locator('#titulo-vista')).toHaveText('Hola, Asesor');
   const anchoDoc = await page.evaluate(() => document.documentElement.scrollWidth);
   expect(anchoDoc).toBeLessThanOrEqual(375);
 
-  for (const [pestana, titulo] of [['visitas', 'Visitas a parques'], ['historial', 'Historial'], ['perfil', 'Perfil'], ['inicio', 'Hola']]) {
+  for (const [pestana, titulo] of [['visitas', 'Visitas a parques'], ['historial', 'Historial'], ['perfil', 'Perfil'], ['inicio', 'Hola, Asesor']]) {
     await page.locator(`[data-pestana="${pestana}"]`).click();
     await expect(page.locator('#titulo-vista')).toHaveText(titulo);
     await expect(page.locator(`#vista-${pestana}`)).toBeVisible();
@@ -17,7 +24,6 @@ test('carga a 375×812 sin desbordes y con las 4 pestañas', async ({ page }) =>
 });
 
 test('áreas táctiles ≥ 44 px y texto ≥ 13 px', async ({ page }) => {
-  await page.goto('index.html');
   const pequenos = await page.evaluate(() => {
     const malos = [];
     for (const el of document.querySelectorAll('button, a, input')) {
@@ -56,13 +62,12 @@ test('es instalable (sin errores de instalabilidad de Chrome)', async ({ page })
 });
 
 test('abre sin señal después de la primera visita', async ({ page, context }) => {
-  await page.goto('index.html');
   await page.evaluate(() => navigator.serviceWorker.ready);
   await page.reload();   // ya controlada por el service worker
   await expect.poll(() => page.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true);
   await context.setOffline(true);
   await page.reload();
-  await expect(page.locator('#titulo-vista')).toHaveText('Hola');
+  await expect(page.locator('#titulo-vista')).toHaveText('Hola, Asesor');
   await page.locator('[data-pestana="perfil"]').click();
   await expect(page.locator('#version-app')).toHaveText(/^v\d+/);
   const fuentes = await page.evaluate(async () => {

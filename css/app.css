@@ -68,8 +68,18 @@ button { cursor: pointer; }
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
-  padding-bottom: calc(var(--alto-nav) + env(safe-area-inset-bottom));
 }
+.pantalla-app { flex: 1; display: flex; flex-direction: column; padding-bottom: calc(var(--alto-nav) + env(safe-area-inset-bottom)); }
+.pantalla-app[hidden], .pantalla-centrada[hidden] { display: none; }
+.pantalla-centrada {
+  flex: 1;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px;
+  padding: calc(24px + env(safe-area-inset-top)) 16px calc(24px + env(safe-area-inset-bottom));
+  text-align: center;
+}
+.pantalla-centrada > .tarjeta, .pantalla-centrada > .lista-opciones, .pantalla-centrada > .boton { width: 100%; }
+.logo { width: 96px; height: 96px; border-radius: 24px; }
+.centrado { text-align: center; }
 .encabezado {
   display: flex;
   align-items: center;
@@ -111,6 +121,31 @@ button { cursor: pointer; }
 .lista__titulo { font-weight: 500; }
 .lista__detalle { font-size: 13px; color: var(--follaje); }
 
+.lista__valor { text-align: right; overflow-wrap: anywhere; color: var(--follaje); }
+
+/* ---------- Formularios ---------- */
+.formulario { display: flex; flex-direction: column; gap: 16px; text-align: left; }
+.campo { display: flex; flex-direction: column; gap: 6px; }
+.campo__etiqueta { font-size: 14px; font-weight: 500; }
+.campo__fila { display: flex; gap: 8px; }
+.campo__entrada {
+  flex: 1; min-width: 0;
+  min-height: var(--tactil); padding: 10px 12px;
+  border: 1.5px solid #B9B3A3; border-radius: var(--radio-chico);
+  background: var(--blanco); font-size: 16px;   /* 16 px evita el zoom automático en iOS */
+}
+.campo__entrada:focus { border-color: var(--verde); outline: none; box-shadow: 0 0 0 3px rgb(20 80 58 / 18%); }
+
+.lista-opciones { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.opcion {
+  width: 100%; min-height: 64px; padding: 12px 16px;
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+  border: 1.5px solid var(--linea); border-radius: var(--radio);
+  background: var(--blanco); text-align: left; box-shadow: var(--sombra);
+}
+.opcion__titulo { font-weight: 600; font-size: 17px; }
+.opcion__detalle { font-size: 13px; color: var(--follaje); }
+
 /* ---------- Chips de estado ---------- */
 .chip {
   display: inline-flex; align-items: center; gap: 6px;
@@ -135,6 +170,7 @@ button { cursor: pointer; }
 .boton--lleno { background: var(--verde); color: var(--blanco); }
 .boton--tierra { background: var(--tierra); border-color: var(--tierra); color: var(--blanco); }
 .boton--ancho { width: 100%; }
+.boton--chico { min-width: var(--tactil); padding: 6px 12px; font-size: 14px; }
 .boton:disabled { opacity: .5; cursor: not-allowed; }
 
 .boton-principal {

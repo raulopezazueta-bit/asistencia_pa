@@ -4,8 +4,9 @@
 //
 // Historial de versiones (una línea por versión):
 // asis-2026-10-03-v01 · T-01 esqueleto PWA: pestañas, tokens de marca, fuentes IBM Plex locales, íconos y modo sin señal del cascarón.
+// asis-2026-10-03-v02 · HU-08 inicio de sesión: correo y contraseña, sesión persistente (también sin señal), aviso sin alta y selector de organización.
 
-const CACHE_VERSION = 'asis-2026-10-03-v01';
+const CACHE_VERSION = 'asis-2026-10-03-v02';
 
 const CASCARON = [
   './',
@@ -14,6 +15,9 @@ const CASCARON = [
   './config.js',
   './css/app.css',
   './js/app.js',
+  './js/api.js',
+  './js/almacen.js',
+  './js/sesion.js',
   './vendor/supabase.js',
   './fonts/ibm-plex-sans-latin-400-normal.woff2',
   './fonts/ibm-plex-sans-latin-500-normal.woff2',

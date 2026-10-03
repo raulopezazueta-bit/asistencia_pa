@@ -16,19 +16,58 @@
   <link rel="preload" href="fonts/ibm-plex-sans-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="fonts/ibm-plex-sans-latin-600-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="css/app.css">
+  <script src="vendor/supabase.js" defer></script>
   <script type="module" src="js/app.js"></script>
 </head>
 <body>
   <div class="app">
+    <!-- Cargando -->
+    <section class="pantalla-centrada" id="pantalla-cargando" aria-busy="true">
+      <img class="logo" src="assets/icon-192.png" alt="" width="96" height="96">
+      <p class="secundario">Cargando…</p>
+    </section>
+
+    <!-- Acceso (HU-08) -->
+    <section class="pantalla-centrada" id="pantalla-acceso" hidden>
+      <img class="logo" src="assets/icon-192.png" alt="" width="96" height="96">
+      <h1 class="encabezado__titulo">Registro de jornada</h1>
+      <p class="secundario centrado">Entra con el correo y la contraseña que te dio coordinación.</p>
+      <form class="formulario tarjeta" id="form-acceso" novalidate>
+        <div class="aviso aviso--critico" id="acceso-error" role="alert" hidden></div>
+        <label class="campo">
+          <span class="campo__etiqueta">Correo</span>
+          <input class="campo__entrada" id="acceso-correo" name="correo" type="email" autocomplete="username" inputmode="email" autocapitalize="off" spellcheck="false" required>
+        </label>
+        <label class="campo">
+          <span class="campo__etiqueta">Contraseña</span>
+          <span class="campo__fila">
+            <input class="campo__entrada" id="acceso-contrasena" name="contrasena" type="password" autocomplete="current-password" required>
+            <button class="boton boton--chico" type="button" id="acceso-ver" aria-pressed="false">Ver</button>
+          </span>
+        </label>
+        <button class="boton boton--lleno boton--ancho" type="submit" id="acceso-entrar">Entrar</button>
+      </form>
+    </section>
+
+    <!-- Selector de organización (HU-08) -->
+    <section class="pantalla-centrada" id="pantalla-organizacion" hidden>
+      <h1 class="encabezado__titulo">¿Con qué organización vas a registrar?</h1>
+      <p class="secundario centrado">Tu cuenta pertenece a varias organizaciones. Puedes cambiarla después en Perfil.</p>
+      <ul class="lista-opciones" id="lista-organizaciones"></ul>
+      <button class="boton boton--ancho" type="button" id="organizacion-salir">Cerrar sesión</button>
+    </section>
+
+    <div class="pantalla-app" id="pantalla-app" hidden>
     <header class="encabezado">
       <div>
         <p class="encabezado__org" id="org-nombre">Registro de jornada</p>
         <h1 class="encabezado__titulo" id="titulo-vista">Hola</h1>
       </div>
-      <span class="avatar" id="avatar" aria-hidden="true">·</span>
+      <span class="avatar" id="avatar" aria-hidden="true"></span>
     </header>
 
     <main class="contenido" id="contenido">
+      <div class="aviso" id="aviso-sin-conexion" role="status" hidden>Sin señal: trabajas con los datos guardados en el teléfono.</div>
       <!-- Inicio -->
       <section class="vista" id="vista-inicio" data-vista="inicio" aria-labelledby="titulo-vista">
         <article class="tarjeta" aria-label="Jornada de hoy">
@@ -67,9 +106,15 @@
       <section class="vista" id="vista-perfil" data-vista="perfil" hidden>
         <article class="tarjeta">
           <ul class="lista">
+            <li class="lista__fila"><span>Nombre</span><span class="lista__valor" id="perfil-nombre">—</span></li>
+            <li class="lista__fila"><span>Organización</span><span class="lista__valor" id="perfil-organizacion">—</span></li>
+            <li class="lista__fila"><span>Rol</span><span class="lista__valor" id="perfil-rol">—</span></li>
+            <li class="lista__fila"><span>Correo</span><span class="lista__valor" id="perfil-correo">—</span></li>
             <li class="lista__fila"><span>Versión de la app</span><span class="mono" id="version-app">—</span></li>
           </ul>
         </article>
+        <button class="boton boton--ancho" type="button" id="perfil-cambiar-org" hidden>Cambiar de organización</button>
+        <button class="boton boton--tierra boton--ancho" type="button" id="perfil-salir">Cerrar sesión</button>
       </section>
     </main>
 
@@ -89,6 +134,7 @@
           Perfil</a></li>
       </ul>
     </nav>
+    </div>
 
     <div class="actualizacion" id="aviso-actualizacion" role="status" hidden>
       <span>Hay una versión nueva de la app.</span>
