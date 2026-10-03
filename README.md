@@ -6,6 +6,7 @@ PWA en JavaScript puro con Supabase (Postgres + PostGIS, Auth, Storage y RLS).
 - Contexto técnico y reglas: [`CLAUDE.md`](CLAUDE.md)
 - Especificación funcional: [`docs/ESPECIFICACION.md`](docs/ESPECIFICACION.md)
 - Backlog técnico: [`docs/BACKLOG_TECNICO.md`](docs/BACKLOG_TECNICO.md)
+- Alta de personas (administración): [`docs/ALTA_PERSONAS.md`](docs/ALTA_PERSONAS.md)
 - Esquema de base de datos: [`supabase/migrations/`](supabase/migrations/) · pruebas: [`supabase/tests/`](supabase/tests/)
 
 Desarrollado por Ecosistémica – Consultoría Ambiental Integral.
@@ -13,6 +14,7 @@ Desarrollado por Ecosistémica – Consultoría Ambiental Integral.
 ## Pruebas locales
 
 - SQL: `bash supabase/tests/correr_pruebas.sh` (requiere `postgresql` y `postgresql-16-postgis-3`).
+  La guía de alta se prueba con `bash supabase/tests/pruebas_alta_personas.sh`.
 - App (Playwright, solo desarrollo): `npm ci` y luego `npm test`. Dependencias y huellas: [`docs/DEPENDENCIAS.md`](docs/DEPENDENCIAS.md). La app publicada no usa npm.
   Las pruebas usan un Supabase simulado con usuarios ficticios (`tests/simulador.js`).
 - Separación entre organizaciones de punta a punta (HU-07): `npm run prueba:separacion`.
