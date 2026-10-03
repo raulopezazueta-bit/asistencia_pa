@@ -2,6 +2,7 @@
 // Reloj de la página: lunes 5-oct-2026 (Culiacán). Catálogo ficticio: Parque Ficticio 001 en 24.76, -107.43 (±45 m).
 import { test, expect } from '@playwright/test';
 import { simularSupabase, entrar, senal, eventoServidor as ev, USUARIOS } from './simulador.js';
+import { CONFIG } from '../config.js';
 
 const DIA = '2026-10-05';
 const PARQUE_1 = { latitude: 24.7601, longitude: -107.4301, accuracy: 8 };
@@ -45,7 +46,7 @@ test('entrada a campo dentro del parque: llega al servidor y cambia el botón', 
 
   expect(enviados(sim)).toHaveLength(1);
   const e = enviados(sim)[0];
-  expect(e).toMatchObject({ tipo: 'inicio_bloque', bloque: 'campo', modalidad: 'presencial', capturado_sin_conexion: false, lat: 24.7601, lon: -107.4301, precision_m: 8, justificacion: null, version_app: 'v06' });
+  expect(e).toMatchObject({ tipo: 'inicio_bloque', bloque: 'campo', modalidad: 'presencial', capturado_sin_conexion: false, lat: 24.7601, lon: -107.4301, precision_m: 8, justificacion: null, version_app: CONFIG.VERSION_APP });
   expect(e.id).toMatch(/^[0-9a-f-]{36}$/);
   expect(e.sitio_id).toBe('ffffffff-0000-0000-0000-000000000001');
   expect(e).not.toHaveProperty('organizacion_id');      // la pone el servidor
