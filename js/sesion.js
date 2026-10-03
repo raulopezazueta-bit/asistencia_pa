@@ -2,6 +2,7 @@
 // Decide qué pantalla toca: acceso, sin alta, selector de organización o la app.
 import * as api from './api.js';
 import { leerMeta, guardarMeta, borrarMeta } from './almacen.js';
+import * as sitios from './sitios.js';
 
 export const MENSAJE_SIN_ALTA =
   'Tu cuenta existe, pero no tiene un alta activa en ninguna organización. ' +
@@ -69,6 +70,7 @@ export async function salir() {
   await api.cerrarSesion();
   await borrarMeta('membresias');
   await borrarMeta('organizacion_elegida');
+  await sitios.olvidar();
 }
 
 // Traduce errores de inicio de sesión a mensajes claros.

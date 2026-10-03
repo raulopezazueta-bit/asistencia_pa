@@ -95,6 +95,19 @@
       <!-- Visitas -->
       <section class="vista" id="vista-visitas" data-vista="visitas" hidden>
         <article class="tarjeta"><p class="secundario">Aquí verás tu recorrido del día por parque.</p></article>
+
+        <article class="tarjeta catalogo" aria-labelledby="catalogo-titulo">
+          <div class="catalogo__cabecera">
+            <h2 class="tarjeta__etiqueta" id="catalogo-titulo">Parques en el teléfono</h2>
+            <button class="boton boton--chico" type="button" id="catalogo-actualizar">Actualizar</button>
+          </div>
+          <p class="secundario chico" id="catalogo-estado" role="status">Aún no se descargan los parques.</p>
+          <label class="campo">
+            <span class="solo-lector">Buscar parque por nombre, clave o colonia</span>
+            <input class="campo__entrada" id="catalogo-buscar" type="search" placeholder="Buscar por nombre, clave o colonia" autocomplete="off" enterkeyhint="search">
+          </label>
+          <ul class="lista" id="catalogo-resultados" aria-live="polite"></ul>
+        </article>
       </section>
 
       <!-- Historial -->

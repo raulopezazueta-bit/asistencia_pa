@@ -98,3 +98,25 @@ export async function misMembresias(userId) {
     }))
     .sort((a, b) => a.organizacion.nombre.localeCompare(b.organizacion.nombre, 'es'));
 }
+
+// ---------- Sitios (HU-10) ----------
+
+// Catálogo de sitios activos de la organización desde v_sitios_app, en páginas
+// (Supabase entrega como máximo 1000 filas por consulta).
+export async function descargarSitios(organizacionId) {
+  if (navigator.onLine === false) throw errorSinSenal();
+  const PAGINA = 1000;
+  const filas = [];
+  for (let desde = 0; ; desde += PAGINA) {
+    const { data, error } = await conLimite(cliente
+      .from('v_sitios_app')
+      .select('id, organizacion_id, clave_externa, id_oficial, nombre, colonia, tipo, miembro_id, lat, lon, radio_m, tolerancia_m, perimetro_geojson')
+      .eq('organizacion_id', organizacionId)
+      .order('id')
+      .range(desde, desde + PAGINA - 1), 30000);
+    if (error) throw error;
+    filas.push(...data);
+    if (data.length < PAGINA) break;
+  }
+  return filas;
+}

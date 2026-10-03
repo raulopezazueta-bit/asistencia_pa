@@ -1,6 +1,7 @@
 // Arranque de la app del asesor: sesión, pestañas, fecha del día y service worker.
 import { CONFIG } from '../config.js';
 import * as sesion from './sesion.js';
+import * as sitios from './sitios.js';
 
 const VISTAS = ['inicio', 'visitas', 'historial', 'perfil'];
 const TITULOS = { inicio: 'Hola', visitas: 'Visitas a parques', historial: 'Historial', perfil: 'Perfil' };
@@ -8,7 +9,7 @@ const PANTALLAS = ['cargando', 'acceso', 'organizacion', 'app'];
 const ROLES = { asesor: 'Asesoría', coordinador: 'Coordinación', admin: 'Administración' };
 const $ = (id) => document.getElementById(id);
 
-const estado = { perfil: null, membresias: [], sinConexion: false };
+const estado = { perfil: null, membresias: [], sinConexion: false, recienEntro: false };
 
 // ---------- Pantallas y pestañas ----------
 function mostrarPantalla(nombre) {
@@ -99,7 +100,10 @@ async function aplicar(r) {
     case 'lista':
       Object.assign(estado, { perfil: r.perfil, membresias: r.membresias, sinConexion: r.sinConexion });
       pintarPerfil(r.correo);
-      return mostrarPantalla('app');
+      mostrarPantalla('app');
+      sincronizarSitios({ forzar: estado.recienEntro });
+      estado.recienEntro = false;
+      return;
   }
 }
 
@@ -121,6 +125,7 @@ function conectarFormularios() {
     const boton = $('acceso-entrar');
     boton.disabled = true;
     boton.textContent = 'Entrando…';
+    estado.recienEntro = true;   // al iniciar sesión se descarga el catálogo de sitios
     try {
       await aplicar(await sesion.entrar(correo, contrasena));
     } catch (e) {
@@ -140,6 +145,8 @@ function conectarFormularios() {
   const salir = async () => {
     await sesion.salir();
     estado.perfil = null;
+    $('catalogo-buscar').value = '';
+    $('catalogo-resultados').replaceChildren();
     location.hash = '';
     mostrarAcceso();
   };
@@ -149,8 +156,97 @@ function conectarFormularios() {
     await sesion.olvidarOrganizacion();
     mostrarSelector(estado.membresias);
   });
-  // Al volver la señal se confirma que la persona sigue activa.
+  // Al volver la señal se confirma que la persona sigue activa (y se revisa el catálogo de sitios).
   window.addEventListener('online', () => { if (estado.perfil) revisarSesion(); });
+  // Al volver a la app: si cambió el día, se descarga de nuevo el catálogo.
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && estado.perfil) sincronizarSitios();
+  });
+  $('catalogo-actualizar').addEventListener('click', () => sincronizarSitios({ forzar: true }));
+  let espera;
+  $('catalogo-buscar').addEventListener('input', () => {
+    clearTimeout(espera);
+    espera = setTimeout(pintarBusqueda, 120);
+  });
+}
+
+// ---------- Catálogo de sitios (HU-10) ----------
+const TIPOS_SITIO = { parque: 'Parque', oficina: 'Oficina', domicilio: 'Domicilio', otro: 'Otro sitio' };
+let sincronizando = null;
+
+function cuando(iso) {
+  const zona = zonaHoraria();
+  const d = new Date(iso);
+  const dia = (x) => new Intl.DateTimeFormat('en-CA', { timeZone: zona }).format(x);
+  const hora = new Intl.DateTimeFormat('es-MX', { timeZone: zona, hour: '2-digit', minute: '2-digit', hour12: false }).format(d);
+  if (dia(d) === dia(new Date())) return `hoy a las ${hora}`;
+  if (dia(d) === dia(new Date(Date.now() - 864e5))) return `ayer a las ${hora}`;
+  return `el ${new Intl.DateTimeFormat('es-MX', { timeZone: zona, day: 'numeric', month: 'short' }).format(d).replace(/\./g, '')} a las ${hora}`;
+}
+
+async function pintarCatalogo(resultado) {
+  const meta = await sitios.estado();
+  const vigente = meta && meta.organizacionId === estado.perfil?.organizacionId;
+  let texto;
+  if (vigente) {
+    const filas = await sitios.todos(meta.organizacionId);
+    const parques = filas.filter((f) => f.tipo === 'parque').length;
+    const otros = filas.length - parques;
+    texto = `${parques} parques guardados${otros ? ` y ${otros} ${otros === 1 ? 'sitio' : 'sitios'} más` : ''} · actualizado ${cuando(meta.descargados)}`;
+    if (resultado?.error) texto = `Sin señal: se usa la copia guardada (${parques} parques, actualizada ${cuando(meta.descargados)}).`;
+  } else {
+    texto = resultado?.error
+      ? 'No se pudieron descargar los parques. Se intentará de nuevo al tener señal.'
+      : 'Aún no se descargan los parques.';
+  }
+  $('catalogo-estado').textContent = texto;
+}
+
+async function sincronizarSitios({ forzar = false } = {}) {
+  if (!estado.perfil) return;
+  if (sincronizando) return sincronizando;
+  const boton = $('catalogo-actualizar');
+  sincronizando = (async () => {
+    if (forzar || await sitios.haceFalta(estado.perfil)) {
+      boton.disabled = true;
+      $('catalogo-estado').textContent = 'Descargando parques…';
+    }
+    const r = await sitios.actualizar(estado.perfil, { forzar });
+    await pintarCatalogo(r);
+    if ($('catalogo-buscar').value) await pintarBusqueda();
+  })().finally(() => { sincronizando = null; boton.disabled = false; });
+  return sincronizando;
+}
+
+async function pintarBusqueda() {
+  const texto = $('catalogo-buscar').value;
+  const lista = $('catalogo-resultados');
+  if (!texto.trim() || !estado.perfil) return lista.replaceChildren();
+  const encontrados = await sitios.buscar(estado.perfil.organizacionId, texto);
+  if (!encontrados.length) {
+    const li = document.createElement('li');
+    li.className = 'lista__fila secundario';
+    li.textContent = `Sin resultados para “${texto.trim()}”.`;
+    return lista.replaceChildren(li);
+  }
+  lista.replaceChildren(...encontrados.map((s) => {
+    const li = document.createElement('li');
+    li.className = 'lista__fila';
+    li.dataset.sitio = s.id;
+    const izq = document.createElement('div');
+    const titulo = document.createElement('p');
+    titulo.className = 'lista__titulo';
+    titulo.textContent = s.nombre;
+    const detalle = document.createElement('p');
+    detalle.className = 'lista__detalle';
+    detalle.textContent = [s.tipo !== 'parque' ? TIPOS_SITIO[s.tipo] : null, s.colonia].filter(Boolean).join(' · ') || ' ';
+    izq.append(titulo, detalle);
+    const clave = document.createElement('span');
+    clave.className = 'sitio__clave';
+    clave.textContent = s.clave || '';
+    li.append(izq, clave);
+    return li;
+  }));
 }
 
 // ---------- Service worker y aviso de versión nueva ----------

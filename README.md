@@ -18,3 +18,4 @@ Desarrollado por Ecosistémica – Consultoría Ambiental Integral.
 - Separación entre organizaciones de punta a punta (HU-07): `npm run prueba:separacion`.
   Levanta Postgres + PostGIS + PostgREST locales con la migración real y datos ficticios
   (`supabase/tests/e2e/`), corre la prueba y los apaga.
+- Todo junto (simulador + API local): `npm run prueba:completa`.

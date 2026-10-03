@@ -27,6 +27,32 @@ export const USUARIOS = {
     miembros: [{ id: 'aaaaaaaa-0000-0000-0000-000000000003', org: 'demo', nombre_completo: 'Asesor Demo', rol: 'asesor', activo: true }] }
 };
 
+// Catálogo FICTICIO de sitios (nunca el seed real): cuadrícula alrededor del centro de Culiacán.
+// Algunos nombres llevan acentos para probar la búsqueda.
+const COLONIAS = ['Colonia Ficticia Norte', 'Colonia Ficticia Sur', 'Fraccionamiento Los Álamos Ficticio', 'Barrio Ejemplo'];
+export function sitiosFicticios(organizacion, cantidad, prefijo = 'F') {
+  const filas = [];
+  for (let i = 1; i <= cantidad; i++) {
+    const lat = 24.76 + Math.floor((i - 1) / 30) * 0.003;
+    const lon = -107.43 + ((i - 1) % 30) * 0.003;
+    const d = 0.0004;   // ~45 m por lado desde el centro
+    const especial = i === 7 ? 'Jardín Ñandú Ficticio' : i === 12 ? 'Parque Álamo Ficticio' : null;
+    filas.push({
+      id: `ffffffff-0000-0000-${prefijo === 'F' ? '0000' : '0001'}-${String(i).padStart(12, '0')}`,
+      organizacion_id: ORGS[organizacion].id,
+      clave_externa: `${prefijo}-${String(i).padStart(4, '0')}`,
+      id_oficial: `${prefijo}X-${String(100000 + i)}`,
+      nombre: especial || `Parque Ficticio ${String(i).padStart(3, '0')}`,
+      colonia: COLONIAS[i % COLONIAS.length],
+      tipo: 'parque', miembro_id: null,
+      lat, lon,
+      radio_m: 80, tolerancia_m: 30,
+      perimetro_geojson: i % 10 === 0 ? null : { type: 'MultiPolygon', coordinates: [[[[lon - d, lat - d], [lon + d, lat - d], [lon + d, lat + d], [lon - d, lat + d], [lon - d, lat - d]]]] }
+    });
+  }
+  return filas;
+}
+
 const b64url = (o) => Buffer.from(JSON.stringify(o)).toString('base64url');
 function token(usuario, segundos = 3600) {
   const exp = Math.floor(Date.now() / 1000) + segundos;
@@ -62,9 +88,13 @@ const json = (route, status, cuerpo, extra = {}) =>
 // Instala el simulador. Devuelve { registro, estado }: `registro` guarda las peticiones y
 // `estado.sinRed = true` hace que el simulador responda como si no hubiera señal
 // (context.setOffline no detiene a page.route, por eso se corta aquí también).
-export async function simularSupabase(page) {
+export async function simularSupabase(page, { sitiosPA = 782, sitiosDemo = 3 } = {}) {
   const registro = [];
   const estado = { sinRed: false };
+  // Domicilio ficticio del asesor de prueba: RLS solo se lo muestra a él (y a coordinación).
+  const domicilio = { ...sitiosFicticios('pa', 1, 'D')[0], id: 'dddddddd-dddd-0000-0000-000000000001', clave_externa: null,
+    id_oficial: null, nombre: 'Domicilio ficticio', tipo: 'domicilio', miembro_id: 'aaaaaaaa-0000-0000-0000-000000000001', perimetro_geojson: null };
+  const catalogo = [...sitiosFicticios('pa', sitiosPA), domicilio, ...sitiosFicticios('demo', sitiosDemo, 'G')];
   await page.route(`${URL_SUPABASE}/**`, async (route) => {
     const req = route.request();
     const url = new URL(req.url());
@@ -105,6 +135,22 @@ export async function simularSupabase(page) {
       if (filtroUser) filas = filas.filter((f) => `eq.${f.user_id}` === filtroUser);
       if (filtroActivo) filas = filas.filter((f) => `eq.${f.activo}` === filtroActivo);
       return json(route, 200, filas);
+    }
+
+    if (url.pathname === '/rest/v1/v_sitios_app' && req.method() === 'GET') {
+      const u = usuarioDeToken(req);
+      if (!u) return json(route, 401, { code: 'PGRST301', message: 'JWT expired' });
+      const misOrgs = u.miembros.filter((m) => m.activo).map((m) => ORGS[m.org].id);
+      const misMiembros = u.miembros.map((m) => m.id);
+      const esCoord = u.miembros.some((m) => m.activo && m.rol !== 'asesor');
+      let filas = catalogo.filter((f) => misOrgs.includes(f.organizacion_id) &&
+        (f.tipo !== 'domicilio' || misMiembros.includes(f.miembro_id) || esCoord));
+      const filtroOrg = url.searchParams.get('organizacion_id');
+      if (filtroOrg) filas = filas.filter((f) => `eq.${f.organizacion_id}` === filtroOrg);
+      if (url.searchParams.get('order')?.startsWith('id')) filas = [...filas].sort((a, b) => a.id.localeCompare(b.id));
+      const offset = Number(url.searchParams.get('offset') || 0);
+      const limit = Math.min(Number(url.searchParams.get('limit') || 1000), 1000);   // tope de Supabase
+      return json(route, 200, filas.slice(offset, offset + limit));
     }
 
     return json(route, 404, { message: `Ruta no simulada: ${req.method()} ${url.pathname}` });

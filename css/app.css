@@ -146,6 +146,11 @@ button { cursor: pointer; }
 .opcion__titulo { font-weight: 600; font-size: 17px; }
 .opcion__detalle { font-size: 13px; color: var(--follaje); }
 
+/* ---------- Catálogo de parques ---------- */
+.catalogo { display: flex; flex-direction: column; gap: 12px; }
+.catalogo__cabecera { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.sitio__clave { font-family: var(--mono); font-size: 13px; color: var(--follaje); white-space: nowrap; }
+
 /* ---------- Chips de estado ---------- */
 .chip {
   display: inline-flex; align-items: center; gap: 6px;
