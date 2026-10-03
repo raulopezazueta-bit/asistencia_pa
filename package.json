@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "servir": "node tests/servidor.mjs",
-    "test": "playwright test"
+    "test": "playwright test",
+    "prueba:separacion": "bash supabase/tests/e2e/levantar_api_local.sh && playwright test tests/hu07_separacion.spec.js; r=$?; bash supabase/tests/e2e/bajar_api_local.sh; exit $r"
   },
   "devDependencies": {
     "@playwright/test": "1.56.1"

@@ -3,7 +3,11 @@
 create schema extensions; create schema auth; create schema storage;
 do $$ begin create role anon nologin; exception when others then null; end $$; do $$ begin create role authenticated nologin; exception when others then null; end $$;
 create table auth.users(id uuid primary key);
-create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub', true),'')::uuid $$;
+-- Igual que en Supabase: acepta el ajuste antiguo (request.jwt.claim.sub, usado por las pruebas SQL)
+-- y el de PostgREST 10+ (request.jwt.claims en JSON, usado por la prueba e2e de HU-07).
+create function auth.uid() returns uuid language sql stable as $$
+  select coalesce(nullif(current_setting('request.jwt.claim.sub', true), ''),
+                  (nullif(current_setting('request.jwt.claims', true), '')::jsonb ->> 'sub'))::uuid $$;
 create table storage.buckets(id text primary key, name text, public bool, file_size_limit bigint, allowed_mime_types text[]);
 create table storage.objects(id uuid default gen_random_uuid(), bucket_id text, name text);
 alter table storage.objects enable row level security;

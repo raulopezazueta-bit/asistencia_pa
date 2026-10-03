@@ -16,7 +16,7 @@ Leyenda: ☐ pendiente · ◐ en curso · ☑ terminado (al cerrar, poner la ver
 |---|---|---|---|
 | ☑ v01 | T-01 | Esqueleto PWA | `index.html`, `manifest.json`, `sw.js` (`asis-AAAA-MM-DD-v01`), `css/app.css` con tokens, fuentes IBM Plex locales, íconos. Instalable en Android; Lighthouse PWA sin errores |
 | ☑ v02 | HU-08 | Inicio de sesión | Correo + contraseña; sesión persistente; si el usuario no tiene fila activa en `miembros`, mensaje claro y cierre de sesión; selector si pertenece a 2 organizaciones |
-| ☐ | HU-07 | Verificar separación | Prueba Playwright o SQL que confirme que un usuario de `iap-demo` no ve datos de `parques-alegres` (ya cubierto en SQL; agregar prueba e2e mínima) |
+| ☑ v03 | HU-07 | Verificar separación | Prueba Playwright o SQL que confirme que un usuario de `iap-demo` no ve datos de `parques-alegres` (ya cubierto en SQL; agregar prueba e2e mínima) |
 | ☐ | HU-10 | Sitios en caché | Descarga `v_sitios_app` al iniciar sesión y una vez al día; guarda en IndexedDB; búsqueda por nombre o clave; funciona sin señal |
 | ☐ | HU-12 | Botón principal y estado del día | `js/reglas.js` implementa la tabla de estados de `docs/ESPECIFICACION.md` §2 con pruebas unitarias (casos: día normal, olvido de fin, pausa abierta, sin horario) |
 | ☐ | HU-17 | Checada con GPS y geocerca | Flujo §3 pasos 1–3 y 5 (sin selfie aún); punto en polígono en cliente; justificación obligatoria fuera de zona en bloque de campo; el evento llega a Supabase y el servidor coincide con el cálculo del cliente en 3 casos de prueba |
