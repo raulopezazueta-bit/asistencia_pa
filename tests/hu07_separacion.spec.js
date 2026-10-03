@@ -12,8 +12,7 @@ async function entrarCon(page, cuenta, organizacionEsperada) {
   await conectarApiLocal(page);
   await page.goto('index.html');
   await entrar(page, cuenta);
-  // Margen amplio: la primera prueba tras encender la réplica local arranca en frío (cascarón + primera consulta).
-  await expect(page.locator('#pantalla-app')).toBeVisible({ timeout: 15_000 });
+  await expect(page.locator('#pantalla-app')).toBeVisible();
   await expect(page.locator('#org-nombre')).toHaveText(organizacionEsperada);
 }
 

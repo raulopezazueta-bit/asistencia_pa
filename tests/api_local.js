@@ -66,8 +66,16 @@ export async function conectarApiLocal(page) {
       const destino = `${API_LOCAL}${url.pathname.slice('/rest/v1'.length)}${url.search}`;
       const encabezados = { ...req.headers() };
       delete encabezados.apikey; delete encabezados.origin; delete encabezados.referer;
-      const resp = await route.fetch({ url: destino, headers: encabezados });
-      return route.fulfill({ response: resp, headers: { ...resp.headers(), ...CORS } });
+      // Se lee la respuesta completa antes de entregarla, y si el navegador ya canceló la petición
+      // (normal al arrancar la app), se ignora: antes eso tumbaba la prueba ("Fetch response has been disposed").
+      try {
+        const resp = await route.fetch({ url: destino, headers: encabezados });
+        const cuerpo = await resp.body();
+        return await route.fulfill({ status: resp.status(), headers: { ...resp.headers(), ...CORS }, body: cuerpo });
+      } catch (error) {
+        if (/disposed|already handled|closed|cancel/i.test(String(error?.message))) return;
+        throw error;
+      }
     }
     return route.fulfill({ status: 404, headers: CORS, body: 'no simulado' });
   });
