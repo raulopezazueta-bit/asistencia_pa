@@ -98,14 +98,14 @@ test('sin señal: se guarda en el teléfono y se envía al volver la señal con 
   await expect(resultado(page)).toHaveText('Guardado en el teléfono');
   await page.locator('#checada-listo').click();
   await expect(page.locator('#boton-principal-texto')).toHaveText('Terminar bloque de campo');   // el estado usa lo guardado
-  await expect(page.locator('#aviso-pendientes')).toHaveText('1 checada guardada en el teléfono, por enviar.');
+  await expect(page.locator('#indicador-envio')).toHaveText('1 por enviar');
   expect(enviados(sim)).toHaveLength(0);
 
   await senal(context, sim, true);
   await page.evaluate(() => window.dispatchEvent(new Event('online')));
   await expect.poll(() => enviados(sim).length).toBe(1);
   expect(enviados(sim)[0]).toMatchObject({ tipo: 'inicio_bloque', capturado_sin_conexion: true });
-  await expect(page.locator('#aviso-pendientes')).toBeHidden();
+  await expect(page.locator('#indicador-envio')).toHaveText('Todo enviado');
 });
 
 test('sin permiso de GPS: avisa, pide justificación en campo y registra sin ubicación', async ({ page, context }) => {

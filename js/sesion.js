@@ -72,6 +72,8 @@ export async function salir() {
   await borrarMeta('organizacion_elegida');
   await borrarMeta('horarios');
   await borrarMeta('eventos_hoy');
+  await borrarMeta('miembros_sw');
+  await borrarMeta('sesion_sw');
   await sitios.olvidar();
 }
 

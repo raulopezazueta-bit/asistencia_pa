@@ -5,6 +5,7 @@ import * as sitios from './sitios.js';
 import * as jornada from './jornada.js';
 import * as checada from './checada.js';
 import * as cola from './cola.js';
+import { guardarMeta } from './almacen.js';
 import { calcularEstado, resumenDelDia, formatoHoras } from './reglas.js';
 
 const VISTAS = ['inicio', 'visitas', 'historial', 'perfil'];
@@ -104,7 +105,10 @@ async function aplicar(r) {
       pintarPerfil(r.correo);
       mostrarPantalla('app');
       sincronizarSitios({ forzar: estado.recienEntro }).then(pintarJornada);
-      enviarPendientes();
+      // Datos para que el service worker pueda enviar pendientes con la app cerrada (Background Sync)
+      guardarMeta('miembros_sw', r.membresias.map((m) => m.miembroId)).catch(() => {});
+      cola.limpiarRegistroLocal().catch(() => {});
+      enviarPendientes({ forzar: true });
       pintarJornada();
       estado.recienEntro = false;
       return;
@@ -147,6 +151,10 @@ function conectarFormularios() {
     $('acceso-ver').setAttribute('aria-pressed', String(ver));
   });
   const salir = async () => {
+    if (estado.perfil) {
+      const { porEnviar } = await cola.contarPendientes(misMiembros());
+      if (porEnviar && !window.confirm(`Tienes ${porEnviar} ${porEnviar === 1 ? 'checada' : 'checadas'} sin enviar. Se quedarán guardadas en este teléfono y se enviarán cuando vuelvas a entrar con tu cuenta. ¿Cerrar sesión?`)) return;
+    }
     await sesion.salir();
     estado.perfil = null;
     $('catalogo-buscar').value = '';
@@ -171,7 +179,7 @@ function conectarFormularios() {
     const b = $('boton-principal');
     iniciarChecada(b.dataset.accion, b.dataset.bloque || null);
   });
-  window.addEventListener('online', () => enviarPendientes());
+  window.addEventListener('online', () => enviarPendientes({ forzar: true }));
   let espera;
   $('catalogo-buscar').addEventListener('input', () => {
     clearTimeout(espera);
@@ -236,10 +244,30 @@ async function iniciarChecada(accion, bloque) {
   }
 }
 
-async function enviarPendientes() {
+const misMiembros = () => estado.membresias.map((m) => m.miembroId);
+
+async function enviarPendientes({ forzar = false } = {}) {
   if (!estado.perfil) return;
-  const enviados = await cola.enviarPendientes();
+  const enviados = await cola.enviarPendientes(misMiembros(), { forzar });
   if (enviados) pintarJornada();
+  else pintarEnvio();
+}
+
+// Indicador fijo del encabezado: "Todo enviado" / "N por enviar" / "N con error"
+async function pintarEnvio() {
+  if (!estado.perfil) return;
+  const { porEnviar, conError } = await cola.contarPendientes(misMiembros());
+  const chip = $('indicador-envio');
+  if (conError) {
+    chip.className = 'chip chip--critico';
+    chip.textContent = `${conError} con error · avisa a coordinación${porEnviar ? ` · ${porEnviar} por enviar` : ''}`;
+  } else if (porEnviar) {
+    chip.className = 'chip chip--aviso';
+    chip.textContent = `${porEnviar} por enviar`;
+  } else {
+    chip.className = 'chip chip--ok';
+    chip.textContent = 'Todo enviado';
+  }
 }
 
 let pintando = null;
@@ -310,13 +338,7 @@ async function pintarJornada() {
       if (!b.disabled) b.addEventListener('click', () => iniciarChecada(s.accion, s.bloque));
       return b;
     }));
-    const { porEnviar, conError } = await cola.contarPendientes(perfil.miembroId);
-    const avisoPend = $('aviso-pendientes');
-    avisoPend.hidden = !porEnviar && !conError;
-    avisoPend.textContent = [
-      porEnviar ? `${porEnviar} ${porEnviar === 1 ? 'checada guardada' : 'checadas guardadas'} en el teléfono, por enviar.` : '',
-      conError ? `${conError} con error: avisa a coordinación.` : ''
-    ].filter(Boolean).join(' ');
+    await pintarEnvio();
     document.body.dataset.estadoJornada = e.estado;
   })().finally(() => {
     pintando = null;
@@ -421,6 +443,10 @@ async function registrarServiceWorker() {
   });
   // Recarga solo cuando la persona eligió actualizar (nunca a media checada).
   let recargando = false;
+  // El service worker avisa cuando envió pendientes en segundo plano
+  navigator.serviceWorker.addEventListener('message', (ev) => {
+    if (ev.data?.tipo === 'PENDIENTES_ENVIADOS') pintarJornada();
+  });
   navigator.serviceWorker.addEventListener('controllerchange', () => {
     if (recargando || $('aviso-actualizacion').hidden) return;
     recargando = true;

@@ -11,8 +11,9 @@
 // asis-2026-10-03-v06 · HU-17 checada con GPS y geocerca: lectura de ubicación al checar, zona en el teléfono, justificación fuera de zona y envío seguro (sin señal se guarda en el teléfono).
 // asis-2026-10-03-v07 · HU-09a guía de alta de personas (docs/ALTA_PERSONAS.md) con su prueba SQL; sin cambios visibles.
 // asis-2026-10-03-v08 · HU-18 selfie de evidencia (sin reconocimiento facial): cámara frontal, vista previa, ≤ 60 KB, respaldo con la cámara del teléfono y envío junto con la checada.
+// asis-2026-10-03-v09 · HU-22 cola sin señal completa: reintentos escalonados, envío en segundo plano (Background Sync), indicador "Todo enviado / N por enviar", limpieza a 35 días.
 
-const CACHE_VERSION = 'asis-2026-10-03-v08';
+const CACHE_VERSION = 'asis-2026-10-03-v09';
 
 const CASCARON = [
   './',
@@ -79,3 +80,84 @@ self.addEventListener('fetch', (e) => {
     }
   })());
 });
+
+// ---------- Background Sync (HU-22): enviar pendientes con la app cerrada (Chrome/Android) ----------
+// Mismo orden y mismas reglas que js/cola.js: primero la selfie, luego el evento con upsert sin duplicar.
+// Si la sesión guardada ya venció, no se intenta: la app lo enviará al abrirse (y renovará la sesión).
+const ETIQUETA_SYNC = 'enviar-pendientes';
+
+// Un solo envío a la vez: el navegador puede disparar varios "sync" seguidos al volver la señal.
+let envioSW = null;
+self.addEventListener('sync', (e) => {
+  if (e.tag !== ETIQUETA_SYNC) return;
+  envioSW = envioSW || enviarPendientesSW().finally(() => { envioSW = null; });
+  e.waitUntil(envioSW);
+});
+
+function abrirAlmacen() {
+  return new Promise((ok, falla) => {
+    const req = indexedDB.open('asistencia', 1);
+    req.onupgradeneeded = () => {
+      for (const t of ['eventos_pendientes', 'eventos_locales', 'sitios']) {
+        if (!req.result.objectStoreNames.contains(t)) req.result.createObjectStore(t, { keyPath: 'id' });
+      }
+      if (!req.result.objectStoreNames.contains('meta')) req.result.createObjectStore('meta');
+    };
+    req.onsuccess = () => ok(req.result);
+    req.onerror = () => falla(req.error);
+  });
+}
+function operar(db, tienda, modo, accion) {
+  return new Promise((ok, falla) => {
+    const req = accion(db.transaction(tienda, modo).objectStore(tienda));
+    req.onsuccess = () => ok(req.result);
+    req.onerror = () => falla(req.error);
+  });
+}
+
+async function enviarPendientesSW() {
+  const db = await abrirAlmacen();
+  const sesion = await operar(db, 'meta', 'readonly', (t) => t.get('sesion_sw'));
+  const miembros = (await operar(db, 'meta', 'readonly', (t) => t.get('miembros_sw'))) || [];
+  if (!sesion || sesion.expira * 1000 < Date.now() + 30_000) return;
+  const pendientes = (await operar(db, 'eventos_pendientes', 'readonly', (t) => t.getAll()))
+    .filter((p) => p.estado !== 'soporte' && miembros.includes(p.miembroId))
+    .sort((a, b) => a.evento.hora_dispositivo.localeCompare(b.evento.hora_dispositivo));
+  const base = { apikey: sesion.llave, authorization: `Bearer ${sesion.token}` };
+  let enviados = 0;
+  for (const p of pendientes) {
+    if (p.selfieBlob && p.evento.selfie_path) {
+      const r = await fetch(`${sesion.url}/storage/v1/object/selfies/${p.evento.selfie_path}`, {
+        method: 'POST', body: p.selfieBlob,
+        headers: { ...base, 'content-type': p.selfieBlob.type, 'x-upsert': 'false', 'cache-control': 'max-age=31536000' }
+      });
+      if (!r.ok) {
+        const cuerpo = await r.json().catch(() => ({}));
+        const yaExiste = String(cuerpo.statusCode) === '409' || /exists|duplicate/i.test(cuerpo.message || '');
+        if (!yaExiste) { await marcarError(db, p, r.status, cuerpo.message); if (r.status === 401 || r.status >= 500) break; continue; }
+      }
+    }
+    const r = await fetch(`${sesion.url}/rest/v1/eventos_jornada?on_conflict=id`, {
+      method: 'POST', body: JSON.stringify(p.evento),
+      headers: { ...base, 'content-type': 'application/json', prefer: 'resolution=ignore-duplicates,return=minimal' }
+    });
+    if (!r.ok) {
+      const cuerpo = await r.json().catch(() => ({}));
+      await marcarError(db, p, r.status, cuerpo.message);
+      if (r.status === 401 || r.status >= 500) break;
+      continue;
+    }
+    await operar(db, 'eventos_pendientes', 'readwrite', (t) => t.delete(p.id));
+    const local = await operar(db, 'eventos_locales', 'readonly', (t) => t.get(p.id));
+    if (local) await operar(db, 'eventos_locales', 'readwrite', (t) => t.put({ ...local, enviado: true }));
+    enviados++;
+  }
+  if (enviados) for (const c of await self.clients.matchAll({ includeUncontrolled: true })) c.postMessage({ tipo: 'PENDIENTES_ENVIADOS', enviados });
+}
+
+// 401 (sesión vencida) y 5xx: se reintentará más tarde. Otros rechazos (permisos/validación): a soporte.
+async function marcarError(db, p, estatus, mensaje) {
+  const soporte = estatus !== 401 && estatus < 500;
+  await operar(db, 'eventos_pendientes', 'readwrite', (t) => t.put({ ...p, intentos: p.intentos + 1,
+    ultimoError: `${estatus} ${mensaje || ''}`.trim(), estado: soporte ? 'soporte' : 'pendiente' }));
+}

@@ -116,6 +116,7 @@ textarea.campo__entrada { resize: vertical; min-height: 88px; }
 }
 .encabezado__org { font-size: 13px; color: var(--follaje); }
 .encabezado__titulo { font-size: 22px; font-weight: 600; line-height: 1.2; }
+.encabezado__envio { margin-top: 6px; }
 .avatar {
   flex: none;
   width: var(--tactil); height: var(--tactil);

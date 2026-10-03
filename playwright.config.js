@@ -1,6 +1,9 @@
 // Pruebas end-to-end en Chromium a 375×812 (tamaño de celular), con cámara falsa.
 import { defineConfig } from '@playwright/test';
 
+// Permite que context.route atienda también las peticiones del service worker (prueba de Background Sync).
+process.env.PW_EXPERIMENTAL_SERVICE_WORKER_NETWORK_EVENTS = '1';
+
 export default defineConfig({
   testDir: 'tests',
   timeout: 30_000,

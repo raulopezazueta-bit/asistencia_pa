@@ -39,11 +39,14 @@ export async function apiLocalDisponible() {
   try { return (await fetch(`${API_LOCAL}/`)).ok; } catch { return false; }
 }
 
+// Devuelve { estado }: con estado.sinRed = true responde como si no hubiera señal (ver senal() en simulador.js).
 export async function conectarApiLocal(page) {
-  await page.route(`${URL_SUPABASE}/**`, async (route) => {
+  const estado = { sinRed: false };
+  await page.context().route(`${URL_SUPABASE}/**`, async (route) => {
     const req = route.request();
     const url = new URL(req.url());
     if (req.method() === 'OPTIONS') return route.fulfill({ status: 204, headers: CORS });
+    if (estado.sinRed) return route.abort('internetdisconnected');
 
     if (url.pathname === '/auth/v1/token') {
       const datos = req.postDataJSON() || {};
@@ -68,4 +71,5 @@ export async function conectarApiLocal(page) {
     }
     return route.fulfill({ status: 404, headers: CORS, body: 'no simulado' });
   });
+  return { estado };
 }

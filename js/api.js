@@ -1,12 +1,23 @@
 // Única puerta de acceso a Supabase. Ningún otro módulo llama a Supabase directamente.
 // supabase-js v2 se carga como script clásico (vendor/supabase.js) y deja el objeto global `supabase`.
 import { CONFIG } from '../config.js';
+import { guardarMeta, borrarMeta } from './almacen.js';
 
 const CLAVE_SESION = 'asis-auth';
 const LIMITE_MS = 6000;   // si el servidor no responde en este lapso, se trata como "sin señal"
 
 export const cliente = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_KEY, {
   auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false, storageKey: CLAVE_SESION }
+});
+
+// Copia mínima de la sesión para el service worker (Background Sync envía pendientes con la app cerrada).
+// Vive en el mismo almacén del teléfono que la sesión de supabase-js; se borra al cerrar sesión.
+cliente.auth.onAuthStateChange((evento, sesion) => {
+  if (sesion?.access_token) {
+    guardarMeta('sesion_sw', { url: CONFIG.SUPABASE_URL, llave: CONFIG.SUPABASE_KEY, token: sesion.access_token, expira: sesion.expires_at }).catch(() => {});
+  } else if (evento === 'SIGNED_OUT') {
+    borrarMeta('sesion_sw').catch(() => {});
+  }
 });
 
 // ¿El error se debe a falta de señal (y conviene reintentar) y no a un rechazo del servidor?

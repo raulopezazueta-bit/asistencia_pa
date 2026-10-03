@@ -107,14 +107,16 @@ export function eventoServidor(tipo, hora, extra = {}) {
     estado_revision: 'ok', motivos_revision: [], origen: 'app', ...extra };
 }
 
-export async function simularSupabase(page, { sitiosPA = 782, sitiosDemo = 3, eventos = [], configPA = {} } = {}) {
+// rechazarEventos: el servidor rechaza los eventos (validación) → deben quedar "para soporte".
+// Las rutas se instalan en el contexto: así también se atienden los envíos del service worker (Background Sync).
+export async function simularSupabase(page, { sitiosPA = 782, sitiosDemo = 3, eventos = [], configPA = {}, rechazarEventos = false } = {}) {
   const registro = [];
   const estado = { sinRed: false, recibidos: [], selfies: [] };
   // Domicilio ficticio del asesor de prueba: RLS solo se lo muestra a él (y a coordinación).
   const domicilio = { ...sitiosFicticios('pa', 1, 'D')[0], id: 'dddddddd-dddd-0000-0000-000000000001', clave_externa: null,
     id_oficial: null, nombre: 'Domicilio ficticio', tipo: 'domicilio', miembro_id: 'aaaaaaaa-0000-0000-0000-000000000001', perimetro_geojson: null };
   const catalogo = [...sitiosFicticios('pa', sitiosPA), domicilio, ...sitiosFicticios('demo', sitiosDemo, 'G')];
-  await page.route(`${URL_SUPABASE}/**`, async (route) => {
+  await page.context().route(`${URL_SUPABASE}/**`, async (route) => {
     const req = route.request();
     const url = new URL(req.url());
     registro.push({ metodo: req.method(), ruta: url.pathname, query: url.search });
@@ -204,6 +206,7 @@ export async function simularSupabase(page, { sitiosPA = 782, sitiosDemo = 3, ev
     if (url.pathname === '/rest/v1/eventos_jornada' && req.method() === 'POST') {
       const u = usuarioDeToken(req);
       if (!u) return json(route, 401, { code: 'PGRST301', message: 'JWT expired' });
+      if (rechazarEventos) return json(route, 400, { code: '23514', message: 'new row violates check constraint' });
       const cuerpo = req.postDataJSON();
       const filas = Array.isArray(cuerpo) ? cuerpo : [cuerpo];
       const respuesta = [];
