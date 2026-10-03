@@ -13,8 +13,9 @@
 // asis-2026-10-03-v08 · HU-18 selfie de evidencia (sin reconocimiento facial): cámara frontal, vista previa, ≤ 60 KB, respaldo con la cámara del teléfono y envío junto con la checada.
 // asis-2026-10-03-v09 · HU-22 cola sin señal completa: reintentos escalonados, envío en segundo plano (Background Sync), indicador "Todo enviado / N por enviar", limpieza a 35 días.
 // asis-2026-10-03-v10 · HU-19 hora doble: aviso si el reloj del teléfono difiere del servidor más que umbral_desfase_min (medido al iniciar sesión y en cada renovación).
+// asis-2026-10-03-v11 · HU-13 pausas: inicio y regreso de comida/pausa, terminar bloque o iniciar el siguiente desde la pausa con confirmación.
 
-const CACHE_VERSION = 'asis-2026-10-03-v10';
+const CACHE_VERSION = 'asis-2026-10-03-v11';
 
 const CASCARON = [
   './',

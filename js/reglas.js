@@ -96,6 +96,16 @@ export function calcularEstado({ eventos, horario = [], ahora = new Date(), zona
   if (r.pausaDesde) {
     estado = 'en_pausa';
     boton = { texto: 'Regresar de la pausa', accion: 'fin_pausa', bloque: r.bloqueAbierto, detalle: r.bloqueAbierto ? `Bloque de ${NOMBRE_BLOQUE[r.bloqueAbierto]} en pausa` : 'Comida entre bloques' };
+    // Salidas directas desde la pausa (HU-13): registran primero el regreso, con confirmación (ver pasosPara).
+    if (r.bloqueAbierto) {
+      secundarias.push({ accion: 'fin_bloque', bloque: r.bloqueAbierto, texto: `Terminar bloque de ${NOMBRE_BLOQUE[r.bloqueAbierto]}` });
+    } else if (pendientes.length) {
+      siguienteBloque = conHorario ? bloqueQueToca(pendientes, horario, minutos) : (pendientes.length === 1 ? pendientes[0] : null);
+      secundarias.push(siguienteBloque
+        ? { accion: 'inicio_bloque', bloque: siguienteBloque, texto: `Iniciar bloque de ${NOMBRE_BLOQUE[siguienteBloque]}` }
+        : { accion: 'inicio_bloque', bloque: null, texto: 'Iniciar bloque' });
+      preguntarBloque = !siguienteBloque;
+    }
   } else if (r.bloqueAbierto) {
     estado = 'en_bloque';
     const b = r.bloqueAbierto;
@@ -107,11 +117,6 @@ export function calcularEstado({ eventos, horario = [], ahora = new Date(), zona
       secundarias.push({ accion: 'llegada_sitio', texto: 'Registrar llegada a parque' });
     }
     secundarias.push({ accion: 'inicio_pausa', texto: 'Iniciar comida/pausa' });
-    const h = programado(b);
-    const margen = Number(config.recordatorio_salida_min ?? MARGEN_OLVIDO_MIN);
-    if (h && minutos > aMinutos(h.fin) + margen) {
-      alertas.push({ tipo: 'olvido_fin', bloque: b, texto: `¿Olvidaste checar salida? El bloque de ${NOMBRE_BLOQUE[b]} terminaba a las ${h.fin}. Termínalo ahora y, si hace falta, solicita una corrección.` });
-    }
   } else if (r.hechos.size === 0 && r.iniciados.size === 0) {
     estado = 'sin_jornada';
   } else if (pendientes.length) {
@@ -120,6 +125,16 @@ export function calcularEstado({ eventos, horario = [], ahora = new Date(), zona
     estado = 'jornada_cerrada';
     boton = null;
     secundarias.push({ accion: 'solicitar_correccion', texto: 'Solicitar corrección' });
+  }
+
+  // Olvido de fin: bloque abierto (también si quedó en pausa) 30 min después de su fin programado
+  if (r.bloqueAbierto) {
+    const b = r.bloqueAbierto;
+    const h = programado(b);
+    const margen = Number(config.recordatorio_salida_min ?? MARGEN_OLVIDO_MIN);
+    if (h && minutos > aMinutos(h.fin) + margen) {
+      alertas.push({ tipo: 'olvido_fin', bloque: b, texto: `¿Olvidaste checar salida? El bloque de ${NOMBRE_BLOQUE[b]} terminaba a las ${h.fin}. Termínalo ahora y, si hace falta, solicita una corrección.` });
+    }
   }
 
   if (estado === 'sin_jornada' || estado === 'entre_bloques') {
@@ -140,7 +155,8 @@ export function calcularEstado({ eventos, horario = [], ahora = new Date(), zona
 }
 
 // ---------- Pasos a registrar para una acción ----------
-// Reglas: terminar bloque en pausa → primero fin_pausa (con confirmación); terminar campo en un parque → salida_sitio;
+// Reglas: terminar bloque o iniciar el siguiente estando en pausa → primero fin_pausa (con confirmación);
+// terminar campo en un parque → salida_sitio;
 // llegar a otro parque → salida del anterior y llegada al nuevo.
 export function pasosPara(estadoDia, accion, { bloque, sitio } = {}) {
   const pasos = [];
@@ -160,6 +176,7 @@ export function pasosPara(estadoDia, accion, { bloque, sitio } = {}) {
       pasos.push({ tipo: 'salida_sitio', sitio: estadoDia.enSitio });
       break;
     case 'inicio_bloque':
+      if (estadoDia.pausaDesde) pasos.push({ tipo: 'fin_pausa', confirmar: 'Estás en la comida. Para iniciar el bloque se registrará primero tu regreso de la pausa. ¿Continuar?' });
       pasos.push({ tipo: 'inicio_bloque', bloque: bloque || estadoDia.siguienteBloque });
       break;
     default:

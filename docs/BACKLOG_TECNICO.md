@@ -31,7 +31,7 @@ Leyenda: ☐ pendiente · ◐ en curso · ☑ terminado (al cerrar, poner la ver
 | ☑ v08 | HU-18 | Selfie | §6; ≤ 60 KB; sube a `selfies/{org}/{miembro}/{yyyy}/{mm}/{id}.webp`; respaldo con input de archivo; cámara se apaga al terminar |
 | ☑ v09 | HU-22 | Cola offline | §5 completo; prueba Playwright: checar sin conexión, recargar la app, volver a tener conexión y ver el evento en el servidor con `capturado_sin_conexion = true` y `hora_efectiva = hora_dispositivo` |
 | ☑ v10 | HU-19 | Hora doble | Indicador al usuario si el reloj del teléfono difiere > 10 min de la hora del servidor (obtenida al iniciar sesión) |
-| ☐ | HU-13 | Pausas | Inicio/fin de comida; cierre automático confirmado al terminar bloque |
+| ☑ v11 | HU-13 | Pausas | Inicio/fin de comida; cierre automático confirmado al terminar bloque |
 | ☐ | HU-20 | Bloque de escritorio en teletrabajo | Modalidad desde `horarios`; sin validación de zona mientras `validar_domicilio = false` |
 | ☐ | HU-33 | Inalterabilidad verificada | Prueba e2e: intentar `update`/`delete` con la llave pública falla; la interfaz no ofrece editar ni borrar |
 | ☐ | HU-14 | Mis horas | Horas del día y de la semana desde `v_jornada_diaria` + eventos locales no enviados |

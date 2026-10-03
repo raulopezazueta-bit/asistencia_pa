@@ -125,11 +125,26 @@ test.describe('olvido de fin', () => {
 test.describe('pausa abierta', () => {
   const eventos = [ev('inicio_bloque', '16:00', { bloque: 'campo' }), ev('llegada_sitio', '16:05', { sitioNombre: 'Parque Uno' }), ev('inicio_pausa', '18:00')];
 
-  test('en pausa dentro del bloque → regresar de la pausa, sin acciones secundarias', () => {
+  test('en pausa dentro del bloque → regresar de la pausa; como salida directa, terminar el bloque (HU-13)', () => {
     const e = estado(eventos, '18:10');
     expect(e.estado).toBe('en_pausa');
     expect(e.boton).toMatchObject({ texto: 'Regresar de la pausa', accion: 'fin_pausa', detalle: 'Bloque de campo en pausa' });
-    expect(e.secundarias).toEqual([]);
+    expect(e.secundarias).toEqual([{ accion: 'fin_bloque', bloque: 'campo', texto: 'Terminar bloque de campo' }]);
+  });
+
+  test('comida entre bloques → iniciar el siguiente bloque registra primero el regreso (confirmado)', () => {
+    const comida = [ev('inicio_bloque', '09:00', { bloque: 'escritorio' }), ev('fin_bloque', '13:00', { bloque: 'escritorio' }), ev('inicio_pausa', '13:05')];
+    const e = estado(comida, '15:55');
+    expect(e.estado).toBe('en_pausa');
+    expect(e.boton.detalle).toBe('Comida entre bloques');
+    expect(e.secundarias).toEqual([{ accion: 'inicio_bloque', bloque: 'campo', texto: 'Iniciar bloque de campo' }]);
+    const pasos = pasosPara(e, 'inicio_bloque', { bloque: 'campo' });
+    expect(pasos.map((p) => p.tipo)).toEqual(['fin_pausa', 'inicio_bloque']);
+    expect(pasos[0].confirmar).toMatch(/regreso de la pausa/);
+  });
+
+  test('pausa que se alarga más allá del fin del bloque también avisa olvido', () => {
+    expect(estado(eventos, '20:45').alertas.map((a) => a.tipo)).toEqual(['olvido_fin']);
   });
 
   test('terminar el bloque estando en pausa y en un parque → fin_pausa (confirmado), salida_sitio, fin_bloque', () => {

@@ -59,7 +59,7 @@ test('pausa abierta en campo: regresar de la pausa', async ({ page }) => {
   await abrirA(page, '18:10', { eventos: [...MANANA, ev('inicio_bloque', `${DIA}T16:00`, { bloque: 'campo' }), ev('inicio_pausa', `${DIA}T18:00`)] });
   await expect(textoBoton(page)).toHaveText('Regresar de la pausa');
   await expect(page.locator('#boton-principal-detalle')).toHaveText('Bloque de campo en pausa');
-  await expect(page.locator('#acciones-secundarias button')).toHaveCount(0);
+  await expect(page.locator('#acciones-secundarias button')).toHaveText(['Terminar bloque de campo']);
 });
 
 test('retardo y jornada cerrada', async ({ page }) => {

@@ -172,15 +172,23 @@ export async function abrir({ perfil, estadoDia, eventos, horario, accion, bloqu
     $('checada-mapa-tarjeta').hidden = false;
     if (!principal.bloque) return cerrar();
   }
-  const b = principal.bloque;
-  const inicioDelBloque = [...eventos].reverse().find((e) => e.tipo === 'inicio_bloque' && e.bloque === b);
-  const modalidad = principal.tipo === 'fin_bloque' && inicioDelBloque?.modalidad
+  const esBloque = ['inicio_bloque', 'fin_bloque'].includes(principal.tipo);
+  // Bloque al que pertenece la checada: el de la checada o, en pausas, el que está abierto (puede no haber: comida entre bloques)
+  const b = principal.bloque || estadoDia.bloqueAbierto || null;
+  const inicioDelBloque = b && [...eventos].reverse().find((e) => e.tipo === 'inicio_bloque' && e.bloque === b);
+  const modalidad = principal.tipo !== 'inicio_bloque' && inicioDelBloque?.modalidad
     ? inicioDelBloque.modalidad
     : horario.find((h) => h.bloque === b)?.modalidad || 'presencial';
   const validarZona = !(modalidad === 'teletrabajo' && !config.validar_domicilio);
-  const esEntrada = principal.tipo === 'inicio_bloque';
-  $('checada-titulo').textContent = `${esEntrada ? 'Entrada' : 'Salida'} · ${b}`;
-  $('checada-confirmar-texto').textContent = esEntrada ? 'Confirmar entrada' : 'Confirmar salida';
+  const TITULOS = {
+    inicio_bloque: [`Entrada · ${b}`, 'Confirmar entrada'],
+    fin_bloque: [`Salida · ${b}`, 'Confirmar salida'],
+    inicio_pausa: ['Inicio de comida/pausa', 'Confirmar pausa'],
+    fin_pausa: ['Regreso de la pausa', 'Confirmar regreso']
+  };
+  const [titulo, textoConfirmar] = TITULOS[principal.tipo] || [principal.tipo, 'Confirmar'];
+  $('checada-titulo').textContent = titulo;
+  $('checada-confirmar-texto').textContent = textoConfirmar;
 
   // Reloj del teléfono (la hora oficial la pone el servidor)
   const zona = perfil.organizacion.zonaHoraria;
@@ -192,11 +200,11 @@ export async function abrir({ perfil, estadoDia, eventos, horario, accion, bloqu
   $('checada-reloj').textContent = textoReloj || '';
 
   let lectura = null, hallado = null, terminoGPS = false, errorGPS = null;
-  const necesitaJustificacion = () => b === 'campo' && (!lectura || !hallado?.dentro);
+  // Justificación: solo en entrada/salida de campo fuera de zona. En pausas (comer fuera) la zona es informativa.
+  const necesitaJustificacion = () => esBloque && b === 'campo' && (!lectura || !hallado?.dentro);
   const justificacionValida = () => $('checada-justificacion').value.trim().length >= MIN_JUSTIFICACION;
   // Selfie: obligatoria en inicio/fin de bloque si la organización lo pide (selfie_obligatoria);
   // en pausas y visitas solo si selfie_en_pausas_y_visitas = true.
-  const esBloque = ['inicio_bloque', 'fin_bloque'].includes(principal.tipo);
   const selfieRequerida = esBloque ? config.selfie_obligatoria !== false : config.selfie_en_pausas_y_visitas === true;
   const actualizarBoton = () => {
     const listoGPS = terminoGPS || (lectura && lectura.precision <= PRECISION_SUFICIENTE_M);
@@ -231,9 +239,9 @@ export async function abrir({ perfil, estadoDia, eventos, horario, accion, bloqu
       zonaEl.textContent = `Dentro de la zona de ${hallado.sitio.nombre}.`;
     } else if (lectura) {
       zonaEl.className = 'aviso';
-      zonaEl.textContent = hallado
+      zonaEl.textContent = (hallado
         ? `Fuera de la zona de ${hallado.sitio.nombre} (a ${Math.round(hallado.distancia)} m).`
-        : 'No estás en ningún sitio del catálogo.';
+        : 'No estás en ningún sitio del catálogo.') + (esBloque ? '' : ' En pausas no se pide justificación.');
     }
     $('checada-justificacion-campo').hidden = !(terminoGPS || lectura) || !necesitaJustificacion();
     $('checada-progreso').textContent = terminoGPS

@@ -229,7 +229,8 @@ function filaJornada(f) {
   return li;
 }
 
-const ACCIONES_ACTIVAS = ['inicio_bloque', 'fin_bloque'];
+// Activas: bloques (HU-17) y pausas (HU-13). Las visitas a parques llegan con HU-24.
+const ACCIONES_ACTIVAS = ['inicio_bloque', 'fin_bloque', 'inicio_pausa', 'fin_pausa'];
 
 async function iniciarChecada(accion, bloque) {
   if (!estado.dia || estado.checando) return;
@@ -327,7 +328,6 @@ async function pintarJornada() {
       $('boton-principal-texto').textContent = e.boton.texto;
       $('boton-principal-detalle').textContent = e.boton.detalle || '';
     }
-    // Activas en este sprint: iniciar y terminar bloque (HU-17). Pausas (HU-13) y visitas (HU-24) llegan después.
     boton.disabled = !(e.boton && ACCIONES_ACTIVAS.includes(e.boton.accion));
     $('acciones-secundarias').replaceChildren(...e.secundarias.map((s) => {
       const b = document.createElement('button');
