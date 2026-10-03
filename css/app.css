@@ -112,6 +112,10 @@ button { cursor: pointer; }
 .horas { display: flex; align-items: baseline; gap: 6px; margin-top: 6px; }
 .horas__valor { font-size: 44px; font-weight: 600; line-height: 1; color: var(--verde); font-variant-numeric: tabular-nums; }
 .horas__unidad { font-size: 18px; color: var(--follaje); }
+.horas__chip { margin-left: auto; align-self: center; }
+.acciones-secundarias { display: flex; flex-direction: column; gap: 8px; }
+.acciones-secundarias:empty { display: none; }
+#alertas-jornada:empty { display: none; }
 .barra { height: 8px; border-radius: 4px; background: var(--neutro-fondo); margin: 12px 0 8px; overflow: hidden; }
 .barra__relleno { height: 100%; width: 0; background: var(--salvia); border-radius: 4px; transition: width .3s; }
 

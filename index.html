@@ -75,6 +75,7 @@
           <div class="horas">
             <span class="horas__valor" id="horas-hoy">0:00</span>
             <span class="horas__unidad">h</span>
+            <span class="chip horas__chip" id="calificacion-hoy" hidden></span>
           </div>
           <div class="barra" aria-hidden="true"><div class="barra__relleno" id="barra-hoy"></div></div>
           <p class="secundario chico" id="horas-programadas">Sin horario cargado</p>
@@ -86,10 +87,18 @@
           </ul>
         </article>
 
+        <div id="alertas-jornada" class="vista"></div>
+
         <button class="boton-principal" id="boton-principal" type="button" disabled>
           <span class="boton-principal__texto" id="boton-principal-texto">Inicia sesión para checar</span>
           <span class="boton-principal__detalle" id="boton-principal-detalle"></span>
         </button>
+        <article class="tarjeta centrado" id="jornada-cerrada" hidden>
+          <p class="lista__titulo">Jornada cerrada</p>
+          <p class="secundario chico">Si algo quedó mal registrado, solicita una corrección.</p>
+        </article>
+        <div class="acciones-secundarias" id="acciones-secundarias"></div>
+        <p class="secundario chico centrado" id="aviso-checada">Las checadas con GPS se activan en la siguiente versión.</p>
       </section>
 
       <!-- Visitas -->

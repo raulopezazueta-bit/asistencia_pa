@@ -120,3 +120,30 @@ export async function descargarSitios(organizacionId) {
   }
   return filas;
 }
+
+// ---------- Jornada (HU-12) ----------
+
+// Horario programado de la persona (todas las filas; el filtro por día y vigencia lo hace js/reglas.js).
+export async function misHorarios(miembroId) {
+  if (navigator.onLine === false) throw errorSinSenal();
+  const { data, error } = await conLimite(cliente
+    .from('horarios')
+    .select('dia_semana, bloque, hora_inicio, hora_fin, modalidad, vigente_desde, vigente_hasta')
+    .eq('miembro_id', miembroId));
+  if (error) throw error;
+  return data || [];
+}
+
+// Eventos de la persona entre dos instantes (ISO), por hora efectiva (la que fija el servidor).
+export async function misEventos(miembroId, desdeISO, hastaISO) {
+  if (navigator.onLine === false) throw errorSinSenal();
+  const { data, error } = await conLimite(cliente
+    .from('eventos_jornada')
+    .select('id, tipo, bloque, modalidad, hora_efectiva, sitio_id, dentro_geocerca, estado_revision, motivos_revision, origen')
+    .eq('miembro_id', miembroId)
+    .gte('hora_efectiva', desdeISO)
+    .lt('hora_efectiva', hastaISO)
+    .order('hora_efectiva'));
+  if (error) throw error;
+  return data || [];
+}

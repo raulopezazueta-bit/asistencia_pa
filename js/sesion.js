@@ -70,6 +70,8 @@ export async function salir() {
   await api.cerrarSesion();
   await borrarMeta('membresias');
   await borrarMeta('organizacion_elegida');
+  await borrarMeta('horarios');
+  await borrarMeta('eventos_hoy');
   await sitios.olvidar();
 }
 

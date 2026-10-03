@@ -2,6 +2,8 @@
 import { CONFIG } from '../config.js';
 import * as sesion from './sesion.js';
 import * as sitios from './sitios.js';
+import * as jornada from './jornada.js';
+import { calcularEstado, resumenDelDia, formatoHoras } from './reglas.js';
 
 const VISTAS = ['inicio', 'visitas', 'historial', 'perfil'];
 const TITULOS = { inicio: 'Hola', visitas: 'Visitas a parques', historial: 'Historial', perfil: 'Perfil' };
@@ -53,8 +55,6 @@ function pintarPerfil(correo) {
   $('perfil-correo').textContent = correo || '—';
   $('perfil-cambiar-org').hidden = estado.membresias.length < 2;
   $('aviso-sin-conexion').hidden = !estado.sinConexion;
-  $('boton-principal').disabled = true;
-  $('boton-principal-texto').textContent = 'La checada llega en la siguiente versión';
   pintarFecha();
   mostrarVista();
 }
@@ -101,7 +101,8 @@ async function aplicar(r) {
       Object.assign(estado, { perfil: r.perfil, membresias: r.membresias, sinConexion: r.sinConexion });
       pintarPerfil(r.correo);
       mostrarPantalla('app');
-      sincronizarSitios({ forzar: estado.recienEntro });
+      sincronizarSitios({ forzar: estado.recienEntro }).then(pintarJornada);
+      pintarJornada();
       estado.recienEntro = false;
       return;
   }
@@ -160,7 +161,7 @@ function conectarFormularios() {
   window.addEventListener('online', () => { if (estado.perfil) revisarSesion(); });
   // Al volver a la app: si cambió el día, se descarga de nuevo el catálogo.
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible' && estado.perfil) sincronizarSitios();
+    if (document.visibilityState === 'visible' && estado.perfil) { sincronizarSitios(); pintarJornada(); }
   });
   $('catalogo-actualizar').addEventListener('click', () => sincronizarSitios({ forzar: true }));
   let espera;
@@ -168,6 +169,116 @@ function conectarFormularios() {
     clearTimeout(espera);
     espera = setTimeout(pintarBusqueda, 120);
   });
+}
+
+// ---------- Jornada de hoy: estado y botón principal (HU-12) ----------
+const ETIQUETA_CALIFICACION = { en_regla: ['En regla', 'chip--ok'], retardo: ['Retardo', 'chip--aviso'], revisar: ['Revisar', 'chip--critico'] };
+const ETIQUETA_FILA = {
+  cerrado: ['Cerrado', 'chip--ok'], abierto: ['En curso', 'chip--aviso'], pendiente: ['Pendiente', 'chip--aviso'],
+  cerrada: ['Pausa', ''], abierta: ['En pausa', 'chip--aviso']
+};
+
+function horaLocal(iso) {
+  return new Intl.DateTimeFormat('es-MX', { timeZone: zonaHoraria(), hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(iso));
+}
+
+function filaJornada(f) {
+  const li = document.createElement('li');
+  li.className = 'lista__fila';
+  li.dataset.fila = f.tipo === 'bloque' ? f.bloque : 'pausa';
+  const izq = document.createElement('div');
+  const titulo = document.createElement('p');
+  titulo.className = 'lista__titulo';
+  const detalle = document.createElement('p');
+  detalle.className = 'lista__detalle';
+  // Solo las horas van en letra monoespaciada
+  const horas = (texto) => { const m = document.createElement('span'); m.className = 'mono'; m.textContent = texto; return m; };
+  const rango = (ini, fin) => [horas(ini), ' – ', fin ? horas(fin) : 'en curso'];
+  if (f.tipo === 'bloque') {
+    titulo.textContent = `Bloque ${f.bloque}`;
+    const lugar = f.modalidad === 'teletrabajo' ? 'Teletrabajo · ' : '';
+    if (f.inicio) detalle.append(lugar, ...rango(horaLocal(f.inicio), f.fin && horaLocal(f.fin)));
+    else detalle.append('Programado ', ...rango(f.programado.inicio, f.programado.fin));
+  } else {
+    titulo.textContent = 'Comida/pausa';
+    detalle.append(...rango(horaLocal(f.inicio), f.fin && horaLocal(f.fin)));
+  }
+  izq.append(titulo, detalle);
+  const [texto, clase] = ETIQUETA_FILA[f.estado];
+  const chip = document.createElement('span');
+  chip.className = `chip ${clase}`.trim();
+  chip.textContent = texto;
+  li.append(izq, chip);
+  return li;
+}
+
+let pintando = null;
+async function pintarJornada() {
+  if (!estado.perfil) return;
+  if (pintando) return pintando;
+  pintando = (async () => {
+    const perfil = estado.perfil;
+    const ahora = new Date();
+    const zona = zonaHoraria();
+    const config = perfil.organizacion.config;
+    const { horario, eventos } = await jornada.cargarHoy(perfil, ahora);
+    if (estado.perfil !== perfil) return;
+    const e = calcularEstado({ eventos, horario, ahora, zona, config });
+    const r = resumenDelDia({ eventos, horario, ahora, zona, config });
+    estado.dia = { e, r, horario, eventos };
+
+    // Tarjeta "Jornada de hoy"
+    pintarFecha();
+    $('horas-hoy').textContent = formatoHoras(r.minutosEfectivos);
+    $('barra-hoy').style.width = r.minutosProgramados ? `${Math.min(100, (r.minutosEfectivos / r.minutosProgramados) * 100)}%` : '0';
+    $('horas-programadas').textContent = r.minutosProgramados ? `de ${formatoHoras(r.minutosProgramados)} h programadas` : 'Sin horario cargado para hoy';
+    const chip = $('calificacion-hoy');
+    chip.hidden = eventos.length === 0;
+    const [txt, clase] = ETIQUETA_CALIFICACION[r.calificacion];
+    chip.textContent = txt;
+    chip.className = `chip horas__chip ${clase}`;
+    const lista = $('lista-bloques');
+    if (r.filas.length) lista.replaceChildren(...r.filas.map(filaJornada));
+    else {
+      const li = document.createElement('li');
+      li.className = 'lista__fila';
+      li.innerHTML = '<span class="secundario">Sin bloques programados ni registrados hoy</span>';
+      lista.replaceChildren(li);
+    }
+
+    // Alertas
+    $('alertas-jornada').replaceChildren(...e.alertas.map((a) => {
+      const div = document.createElement('div');
+      div.className = 'aviso';
+      div.setAttribute('role', 'alert');
+      div.dataset.alerta = a.tipo;
+      div.textContent = a.texto;
+      return div;
+    }));
+
+    // Botón principal y acciones secundarias (la checada llega con HU-17)
+    const boton = $('boton-principal');
+    boton.hidden = !e.boton;
+    $('jornada-cerrada').hidden = e.estado !== 'jornada_cerrada';
+    if (e.boton) {
+      boton.dataset.accion = e.boton.accion;
+      boton.dataset.bloque = e.boton.bloque || '';
+      $('boton-principal-texto').textContent = e.boton.texto;
+      $('boton-principal-detalle').textContent = e.boton.detalle || '';
+    }
+    boton.disabled = true;
+    $('acciones-secundarias').replaceChildren(...e.secundarias.map((s) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'boton boton--ancho';
+      b.dataset.accion = s.accion;
+      b.textContent = s.texto;
+      b.disabled = true;
+      return b;
+    }));
+    document.body.dataset.estadoJornada = e.estado;
+  })().finally(() => { pintando = null; });
+  return pintando;
 }
 
 // ---------- Catálogo de sitios (HU-10) ----------
@@ -272,6 +383,9 @@ async function registrarServiceWorker() {
     location.reload();
   });
 }
+
+// Cada minuto se recalcula el estado (las alertas y las horas dependen de la hora).
+setInterval(() => { if (estado.perfil && document.visibilityState === 'visible') pintarJornada(); }, 60_000);
 
 function iniciar() {
   $('version-app').textContent = CONFIG.VERSION_APP;

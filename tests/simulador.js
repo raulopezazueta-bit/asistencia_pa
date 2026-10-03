@@ -62,8 +62,10 @@ function usuarioAuth(u) {
   return { id: u.id, aud: 'authenticated', role: 'authenticated', email: u.email, email_confirmed_at: '2026-10-01T00:00:00Z',
     app_metadata: { provider: 'email' }, user_metadata: {}, created_at: '2026-10-01T00:00:00Z' };
 }
+// Tokens de 30 días: algunas pruebas fijan el reloj de la página en otra fecha (page.clock).
+const VIGENCIA = 30 * 24 * 3600;
 function sesion(u) {
-  return { access_token: token(u), token_type: 'bearer', expires_in: 3600, expires_at: Math.floor(Date.now() / 1000) + 3600,
+  return { access_token: token(u, VIGENCIA), token_type: 'bearer', expires_in: VIGENCIA, expires_at: Math.floor(Date.now() / 1000) + VIGENCIA,
     refresh_token: `refresco-${u.id}`, user: usuarioAuth(u) };
 }
 function usuarioDeToken(req) {
@@ -88,7 +90,22 @@ const json = (route, status, cuerpo, extra = {}) =>
 // Instala el simulador. Devuelve { registro, estado }: `registro` guarda las peticiones y
 // `estado.sinRed = true` hace que el simulador responda como si no hubiera señal
 // (context.setOffline no detiene a page.route, por eso se corta aquí también).
-export async function simularSupabase(page, { sitiosPA = 782, sitiosDemo = 3 } = {}) {
+// Horario ficticio del asesor de prueba: todos los días, jornada partida (escritorio en casa + campo).
+export const HORARIO_ASESOR = [1, 2, 3, 4, 5, 6, 7].flatMap((d) => [
+  { dia_semana: d, bloque: 'escritorio', hora_inicio: '09:00:00', hora_fin: '13:00:00', modalidad: 'teletrabajo', vigente_desde: '2026-01-01', vigente_hasta: null },
+  { dia_semana: d, bloque: 'campo', hora_inicio: '16:00:00', hora_fin: '20:00:00', modalidad: 'presencial', vigente_desde: '2026-01-01', vigente_hasta: null }
+]);
+
+// Evento del servidor para el asesor de prueba (como lo devolvería PostgREST tras el trigger).
+// hora: 'AAAA-MM-DDTHH:MM' en hora de Culiacán.
+export function eventoServidor(tipo, hora, extra = {}) {
+  return { id: extra.id || `eeeeeeee-0000-0000-0000-${String(Math.floor(Math.random() * 1e12)).padStart(12, '0')}`,
+    miembro_id: 'aaaaaaaa-0000-0000-0000-000000000001', tipo, bloque: null, modalidad: 'presencial',
+    hora_efectiva: new Date(`${hora}:00-07:00`).toISOString(), sitio_id: null, dentro_geocerca: true,
+    estado_revision: 'ok', motivos_revision: [], origen: 'app', ...extra };
+}
+
+export async function simularSupabase(page, { sitiosPA = 782, sitiosDemo = 3, eventos = [] } = {}) {
   const registro = [];
   const estado = { sinRed: false };
   // Domicilio ficticio del asesor de prueba: RLS solo se lo muestra a él (y a coordinación).
@@ -134,6 +151,26 @@ export async function simularSupabase(page, { sitiosPA = 782, sitiosDemo = 3 } =
       }));
       if (filtroUser) filas = filas.filter((f) => `eq.${f.user_id}` === filtroUser);
       if (filtroActivo) filas = filas.filter((f) => `eq.${f.activo}` === filtroActivo);
+      return json(route, 200, filas);
+    }
+
+    if (url.pathname === '/rest/v1/horarios' && req.method() === 'GET') {
+      const u = usuarioDeToken(req);
+      if (!u) return json(route, 401, { code: 'PGRST301', message: 'JWT expired' });
+      const filas = u === USUARIOS.asesor && url.searchParams.get('miembro_id') === 'eq.aaaaaaaa-0000-0000-0000-000000000001' ? HORARIO_ASESOR : [];
+      return json(route, 200, filas);
+    }
+
+    if (url.pathname === '/rest/v1/eventos_jornada' && req.method() === 'GET') {
+      const u = usuarioDeToken(req);
+      if (!u) return json(route, 401, { code: 'PGRST301', message: 'JWT expired' });
+      const mios = u.miembros.map((m) => m.id);
+      const desde = url.searchParams.getAll('hora_efectiva').find((x) => x.startsWith('gte.'))?.slice(4);
+      const hasta = url.searchParams.getAll('hora_efectiva').find((x) => x.startsWith('lt.'))?.slice(3);
+      let filas = eventos.filter((e) => mios.includes(e.miembro_id) && `eq.${e.miembro_id}` === url.searchParams.get('miembro_id'));
+      if (desde) filas = filas.filter((e) => new Date(e.hora_efectiva) >= new Date(desde));
+      if (hasta) filas = filas.filter((e) => new Date(e.hora_efectiva) < new Date(hasta));
+      filas.sort((a, b) => new Date(a.hora_efectiva) - new Date(b.hora_efectiva));
       return json(route, 200, filas);
     }
 
