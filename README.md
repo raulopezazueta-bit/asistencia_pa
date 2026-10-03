@@ -13,7 +13,7 @@ Desarrollado por Ecosistémica – Consultoría Ambiental Integral.
 ## Pruebas locales
 
 - SQL: `bash supabase/tests/correr_pruebas.sh` (requiere `postgresql` y `postgresql-16-postgis-3`).
-- App (Playwright, solo desarrollo): `npm install` y luego `npm test`. La app publicada no usa npm.
+- App (Playwright, solo desarrollo): `npm ci` y luego `npm test`. Dependencias y huellas: [`docs/DEPENDENCIAS.md`](docs/DEPENDENCIAS.md). La app publicada no usa npm.
   Las pruebas usan un Supabase simulado con usuarios ficticios (`tests/simulador.js`).
 - Separación entre organizaciones de punta a punta (HU-07): `npm run prueba:separacion`.
   Levanta Postgres + PostGIS + PostgREST locales con la migración real y datos ficticios
