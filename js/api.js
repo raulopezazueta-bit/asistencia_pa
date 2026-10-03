@@ -2,6 +2,7 @@
 // supabase-js v2 se carga como script clásico (vendor/supabase.js) y deja el objeto global `supabase`.
 import { CONFIG } from '../config.js';
 import { guardarMeta, borrarMeta } from './almacen.js';
+import * as reloj from './reloj.js';
 
 const CLAVE_SESION = 'asis-auth';
 const LIMITE_MS = 6000;   // si el servidor no responde en este lapso, se trata como "sin señal"
@@ -13,6 +14,8 @@ export const cliente = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.
 // Copia mínima de la sesión para el service worker (Background Sync envía pendientes con la app cerrada).
 // Vive en el mismo almacén del teléfono que la sesión de supabase-js; se borra al cerrar sesión.
 cliente.auth.onAuthStateChange((evento, sesion) => {
+  // Token recién renovado: sirve para medir la diferencia de reloj (HU-19)
+  if (evento === 'TOKEN_REFRESHED' && sesion?.access_token) reloj.medir(sesion.access_token).catch(() => {});
   if (sesion?.access_token) {
     guardarMeta('sesion_sw', { url: CONFIG.SUPABASE_URL, llave: CONFIG.SUPABASE_KEY, token: sesion.access_token, expira: sesion.expires_at }).catch(() => {});
   } else if (evento === 'SIGNED_OUT') {
@@ -71,6 +74,7 @@ export async function sesionActual() {
 export async function iniciarSesion(correo, contrasena) {
   const { data, error } = await cliente.auth.signInWithPassword({ email: correo.trim(), password: contrasena });
   if (error) throw error;
+  await reloj.medir(data.session.access_token).catch(() => {});   // hora del servidor al iniciar sesión (HU-19)
   return data.user;
 }
 

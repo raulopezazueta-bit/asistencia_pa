@@ -56,9 +56,11 @@ export function sitiosFicticios(organizacion, cantidad, prefijo = 'F') {
 }
 
 const b64url = (o) => Buffer.from(JSON.stringify(o)).toString('base64url');
-function token(usuario, segundos = 3600) {
+// iat (instante de emisión según el servidor) solo se incluye si la prueba fija la hora del servidor.
+function token(usuario, segundos = 3600, horaServidor = null) {
   const exp = Math.floor(Date.now() / 1000) + segundos;
-  return b64url({ alg: 'HS256', typ: 'JWT' }) + '.' + b64url({ sub: usuario.id, email: usuario.email, role: 'authenticated', exp }) + '.firma';
+  const iat = horaServidor ? { iat: Math.floor(horaServidor.getTime() / 1000) } : {};
+  return b64url({ alg: 'HS256', typ: 'JWT' }) + '.' + b64url({ sub: usuario.id, email: usuario.email, role: 'authenticated', exp, ...iat }) + '.firma';
 }
 function usuarioAuth(u) {
   return { id: u.id, aud: 'authenticated', role: 'authenticated', email: u.email, email_confirmed_at: '2026-10-01T00:00:00Z',
@@ -66,8 +68,8 @@ function usuarioAuth(u) {
 }
 // Tokens de 30 días: algunas pruebas fijan el reloj de la página en otra fecha (page.clock).
 const VIGENCIA = 30 * 24 * 3600;
-function sesion(u) {
-  return { access_token: token(u, VIGENCIA), token_type: 'bearer', expires_in: VIGENCIA, expires_at: Math.floor(Date.now() / 1000) + VIGENCIA,
+function sesion(u, horaServidor = null) {
+  return { access_token: token(u, VIGENCIA, horaServidor), token_type: 'bearer', expires_in: VIGENCIA, expires_at: Math.floor(Date.now() / 1000) + VIGENCIA,
     refresh_token: `refresco-${u.id}`, user: usuarioAuth(u) };
 }
 function usuarioDeToken(req) {
@@ -109,7 +111,8 @@ export function eventoServidor(tipo, hora, extra = {}) {
 
 // rechazarEventos: el servidor rechaza los eventos (validación) → deben quedar "para soporte".
 // Las rutas se instalan en el contexto: así también se atienden los envíos del service worker (Background Sync).
-export async function simularSupabase(page, { sitiosPA = 782, sitiosDemo = 3, eventos = [], configPA = {}, rechazarEventos = false } = {}) {
+// horaServidor: Date que el "servidor" sella en el token (HU-19, diferencia de reloj).
+export async function simularSupabase(page, { sitiosPA = 782, sitiosDemo = 3, eventos = [], configPA = {}, rechazarEventos = false, horaServidor = null } = {}) {
   const registro = [];
   const estado = { sinRed: false, recibidos: [], selfies: [] };
   // Domicilio ficticio del asesor de prueba: RLS solo se lo muestra a él (y a coordinación).
@@ -129,12 +132,12 @@ export async function simularSupabase(page, { sitiosPA = 782, sitiosDemo = 3, ev
       if (url.searchParams.get('grant_type') === 'password') {
         const u = Object.values(USUARIOS).find((x) => x.email === String(datos.email).toLowerCase() && x.clave === datos.password);
         if (!u) return json(route, 400, { code: 'invalid_credentials', error_code: 'invalid_credentials', msg: 'Invalid login credentials' });
-        return json(route, 200, sesion(u));
+        return json(route, 200, sesion(u, horaServidor));
       }
       if (url.searchParams.get('grant_type') === 'refresh_token') {
         const u = Object.values(USUARIOS).find((x) => `refresco-${x.id}` === datos.refresh_token);
         if (!u) return json(route, 400, { code: 'refresh_token_not_found', msg: 'Invalid Refresh Token' });
-        return json(route, 200, sesion(u));
+        return json(route, 200, sesion(u, horaServidor));
       }
     }
     if (url.pathname === '/auth/v1/logout') return route.fulfill({ status: 204, headers: CORS });

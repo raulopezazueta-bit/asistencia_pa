@@ -6,6 +6,7 @@ import * as cola from './cola.js';
 import { leerUbicacion, sitioParaPunto } from './geo.js';
 import { pasosPara, partesLocales } from './reglas.js';
 import * as camara from './camara.js';
+import * as reloj from './reloj.js';
 
 const $ = (id) => document.getElementById(id);
 const PRECISION_SUFICIENTE_M = 20;   // con esta precisión estimada se puede confirmar sin esperar los 20 s
@@ -144,7 +145,7 @@ function prepararSelfie({ requerida, alCambiar }) {
 // opciones: { perfil, estadoDia, eventos, horario, accion, bloque, alTerminar }
 export async function abrir({ perfil, estadoDia, eventos, horario, accion, bloque, mostrarPantalla, alTerminar }) {
   const config = perfil.organizacion.config || {};
-  let reloj = null, gps = null, selfie = null;
+  let relojPantalla = null, gps = null, selfie = null;
   const catalogo = await sitios.todos(perfil.organizacionId);
   let pasos = pasosPara(estadoDia, accion, { bloque });
 
@@ -185,7 +186,10 @@ export async function abrir({ perfil, estadoDia, eventos, horario, accion, bloqu
   const zona = perfil.organizacion.zonaHoraria;
   const pintarHora = () => { $('checada-hora').textContent = new Intl.DateTimeFormat('es-MX', { timeZone: zona, hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).format(new Date()); };
   pintarHora();
-  reloj = setInterval(pintarHora, 1000);
+  relojPantalla = setInterval(pintarHora, 1000);
+  const textoReloj = await reloj.aviso(config);
+  $('checada-reloj').hidden = !textoReloj;
+  $('checada-reloj').textContent = textoReloj || '';
 
   let lectura = null, hallado = null, terminoGPS = false, errorGPS = null;
   const necesitaJustificacion = () => b === 'campo' && (!lectura || !hallado?.dentro);
@@ -251,7 +255,7 @@ export async function abrir({ perfil, estadoDia, eventos, horario, accion, bloqu
     $('checada-confirmar').onclick = () => resolver('confirmar');
   });
   gps.detener();
-  clearInterval(reloj);
+  clearInterval(relojPantalla);
   selfie?.apagar();
   if (!resultado) return cerrar();
 
@@ -293,7 +297,7 @@ export async function abrir({ perfil, estadoDia, eventos, horario, accion, bloqu
   return cerrar();
 
   function cerrar() {
-    clearInterval(reloj);
+    clearInterval(relojPantalla);
     gps?.detener?.();
     selfie?.apagar();
     alTerminar();

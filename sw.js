@@ -12,8 +12,9 @@
 // asis-2026-10-03-v07 · HU-09a guía de alta de personas (docs/ALTA_PERSONAS.md) con su prueba SQL; sin cambios visibles.
 // asis-2026-10-03-v08 · HU-18 selfie de evidencia (sin reconocimiento facial): cámara frontal, vista previa, ≤ 60 KB, respaldo con la cámara del teléfono y envío junto con la checada.
 // asis-2026-10-03-v09 · HU-22 cola sin señal completa: reintentos escalonados, envío en segundo plano (Background Sync), indicador "Todo enviado / N por enviar", limpieza a 35 días.
+// asis-2026-10-03-v10 · HU-19 hora doble: aviso si el reloj del teléfono difiere del servidor más que umbral_desfase_min (medido al iniciar sesión y en cada renovación).
 
-const CACHE_VERSION = 'asis-2026-10-03-v09';
+const CACHE_VERSION = 'asis-2026-10-03-v10';
 
 const CASCARON = [
   './',
@@ -32,6 +33,7 @@ const CASCARON = [
   './js/cola.js',
   './js/checada.js',
   './js/camara.js',
+  './js/reloj.js',
   './vendor/supabase.js',
   './fonts/ibm-plex-sans-latin-400-normal.woff2',
   './fonts/ibm-plex-sans-latin-500-normal.woff2',

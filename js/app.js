@@ -6,6 +6,7 @@ import * as jornada from './jornada.js';
 import * as checada from './checada.js';
 import * as cola from './cola.js';
 import { guardarMeta } from './almacen.js';
+import * as reloj from './reloj.js';
 import { calcularEstado, resumenDelDia, formatoHoras } from './reglas.js';
 
 const VISTAS = ['inicio', 'visitas', 'historial', 'perfil'];
@@ -339,6 +340,9 @@ async function pintarJornada() {
       return b;
     }));
     await pintarEnvio();
+    const textoReloj = await reloj.aviso(config);
+    $('aviso-reloj').hidden = !textoReloj;
+    $('aviso-reloj').textContent = textoReloj || '';
     document.body.dataset.estadoJornada = e.estado;
   })().finally(() => {
     pintando = null;
