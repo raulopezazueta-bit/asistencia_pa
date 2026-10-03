@@ -2,7 +2,7 @@
 // Requiere la API local: `bash supabase/tests/e2e/levantar_api_local.sh` (o `npm run prueba:completa`).
 // Sitios de supabase/tests/e2e/datos_ficticios.sql: PA-1 con polígono (~100×110 m), PA-2 sin polígono (radio 80 m).
 import { test, expect } from '@playwright/test';
-import { entrar } from './simulador.js';
+import { entrar, tomarSelfie } from './simulador.js';
 import { apiLocalDisponible, conectarApiLocal, CUENTAS } from './api_local.js';
 
 test.beforeAll(async () => {
@@ -84,6 +84,7 @@ test('recorrido completo por la pantalla: checar dentro de PA-1 y ver "Dentro" s
   await page.locator('#boton-principal').click();   // inicio o fin, según lo que ya haya en la base local
   if (await page.locator('#checada-elegir').isVisible()) await page.locator('#checada-elegir [data-bloque="campo"]').click();
   await expect(page.locator('#checada-zona')).toHaveText('Dentro de la zona de Parque Ficticio Uno.');
+  await tomarSelfie(page);
   await page.locator('#checada-confirmar').click();
   await expect(page.locator('#checada-resultado:visible #checada-resultado-titulo')).toHaveText('Registrado');
   await expect(page.locator('#checada-resultado-lista')).toContainText('Dentro');

@@ -4,7 +4,8 @@ import { CONFIG } from '../config.js';
 import * as sitios from './sitios.js';
 import * as cola from './cola.js';
 import { leerUbicacion, sitioParaPunto } from './geo.js';
-import { pasosPara } from './reglas.js';
+import { pasosPara, partesLocales } from './reglas.js';
+import * as camara from './camara.js';
 
 const $ = (id) => document.getElementById(id);
 const PRECISION_SUFICIENTE_M = 20;   // con esta precisión estimada se puede confirmar sin esperar los 20 s
@@ -12,7 +13,7 @@ const MIN_JUSTIFICACION = 5;
 const MOTIVOS = {
   fuera_de_geocerca: 'fuera de la zona del sitio',
   sin_ubicacion: 'sin ubicación',
-  sin_selfie: 'sin selfie (la selfie llega en la siguiente versión)',
+  sin_selfie: 'sin selfie',
   reloj_desfasado: 'la hora del teléfono no coincide con la del servidor',
   hora_futura: 'la hora del teléfono está adelantada',
   sin_conexion_prolongada: 'se envió muchas horas después de capturarse'
@@ -72,11 +73,78 @@ function dibujarMapa(lectura, hallado) {
   svg.append(el('line', { class: 'm-escala', x1: 12, y1: H - 12, x2: 12 + largoM * escala, y2: H - 12 }), el('text', { class: 'm-texto', x: 12, y: H - 18 }, `${largoM} m`));
 }
 
+// ---------- Selfie (HU-18; sin reconocimiento facial) ----------
+// Controla la tarjeta de selfie. alCambiar() se llama cuando cambia si hay foto lista.
+function prepararSelfie({ requerida, alCambiar }) {
+  const video = $('selfie-video'), img = $('selfie-foto'), estado = $('selfie-estado');
+  const b = { tomar: $('selfie-tomar'), usar: $('selfie-usar'), repetir: $('selfie-repetir'), archivo: $('selfie-archivo-boton') };
+  let cam = null, foto = null, lista = false, sinCamara = false, url = null, cerrado = false;
+  const mostrar = (...visibles) => { for (const [k, el] of Object.entries(b)) el.hidden = !visibles.includes(k); };
+  const textoBase = `${requerida ? 'Obligatoria. ' : 'Opcional. '}Sin reconocimiento facial: la foto solo es evidencia.`;
+  const limpiarFoto = () => { if (url) URL.revokeObjectURL(url); url = null; foto = null; lista = false; img.hidden = true; img.removeAttribute('src'); };
+
+  async function encender() {
+    limpiarFoto();
+    video.hidden = false;
+    estado.textContent = textoBase;
+    mostrar();
+    try {
+      const abierta = await camara.abrir(video);
+      // Si la pantalla se cerró mientras la cámara encendía, se apaga de inmediato (nunca queda prendida).
+      if (cerrado) { abierta.apagar(); return; }
+      cam = abierta;
+      mostrar('tomar');
+    } catch {
+      if (cerrado) return;
+      sinCamara = true;
+      video.hidden = true;
+      estado.textContent = 'No se pudo abrir la cámara aquí. Toma la foto con la cámara del teléfono.';
+      mostrar('archivo');
+    }
+    alCambiar();
+  }
+  function verFoto(f) {
+    foto = f;
+    url = URL.createObjectURL(f.blob);
+    img.src = url;
+    img.hidden = false;
+    video.hidden = true;
+    estado.textContent = `Revisa la foto (${Math.round(f.blob.size / 1024)} KB).`;
+    mostrar('usar', 'repetir');
+  }
+  b.tomar.onclick = async () => {
+    b.tomar.disabled = true;
+    try { verFoto(await cam.capturar()); } catch { estado.textContent = 'No se pudo tomar la foto. Intenta de nuevo.'; }
+    finally { b.tomar.disabled = false; }
+  };
+  $('selfie-archivo').onchange = async (ev) => {
+    const archivo = ev.target.files?.[0];
+    ev.target.value = '';
+    if (!archivo) return;
+    try { limpiarFoto(); verFoto(await camara.desdeArchivo(archivo)); } catch { estado.textContent = 'No se pudo usar esa foto. Intenta de nuevo.'; }
+  };
+  b.usar.onclick = () => {
+    lista = true;
+    estado.textContent = `✓ Selfie lista (${Math.round(foto.blob.size / 1024)} KB).`;
+    mostrar('repetir');
+    alCambiar();
+  };
+  b.repetir.onclick = () => (sinCamara ? (limpiarFoto(), mostrar('archivo'), $('selfie-archivo').click(), alCambiar()) : encender());
+
+  $('checada-selfie').hidden = false;
+  encender();
+  return {
+    lista: () => lista,
+    foto: () => (lista ? foto : null),
+    apagar: () => { cerrado = true; cam?.apagar(); cam = null; }
+  };
+}
+
 // ---------- Flujo ----------
 // opciones: { perfil, estadoDia, eventos, horario, accion, bloque, alTerminar }
 export async function abrir({ perfil, estadoDia, eventos, horario, accion, bloque, mostrarPantalla, alTerminar }) {
   const config = perfil.organizacion.config || {};
-  let reloj = null, gps = null;
+  let reloj = null, gps = null, selfie = null;
   const catalogo = await sitios.todos(perfil.organizacionId);
   let pasos = pasosPara(estadoDia, accion, { bloque });
 
@@ -88,6 +156,7 @@ export async function abrir({ perfil, estadoDia, eventos, horario, accion, bloqu
   $('checada-captura').hidden = false;
   $('checada-resultado').hidden = true;
   $('checada-justificacion').value = '';
+  $('checada-selfie').hidden = true;
 
   // Sin horario: la persona elige el bloque
   const principal = pasos[pasos.length - 1];
@@ -121,10 +190,16 @@ export async function abrir({ perfil, estadoDia, eventos, horario, accion, bloqu
   let lectura = null, hallado = null, terminoGPS = false, errorGPS = null;
   const necesitaJustificacion = () => b === 'campo' && (!lectura || !hallado?.dentro);
   const justificacionValida = () => $('checada-justificacion').value.trim().length >= MIN_JUSTIFICACION;
+  // Selfie: obligatoria en inicio/fin de bloque si la organización lo pide (selfie_obligatoria);
+  // en pausas y visitas solo si selfie_en_pausas_y_visitas = true.
+  const esBloque = ['inicio_bloque', 'fin_bloque'].includes(principal.tipo);
+  const selfieRequerida = esBloque ? config.selfie_obligatoria !== false : config.selfie_en_pausas_y_visitas === true;
   const actualizarBoton = () => {
     const listoGPS = terminoGPS || (lectura && lectura.precision <= PRECISION_SUFICIENTE_M);
-    $('checada-confirmar').disabled = !listoGPS || (necesitaJustificacion() && !justificacionValida());
+    const listaSelfie = !selfieRequerida || selfie?.lista();
+    $('checada-confirmar').disabled = !listoGPS || !listaSelfie || (necesitaJustificacion() && !justificacionValida());
   };
+  if (esBloque || selfieRequerida) selfie = prepararSelfie({ requerida: selfieRequerida, alCambiar: () => actualizarBoton() });
 
   const pintar = (restantes) => {
     hallado = lectura ? sitioParaPunto(catalogo, lectura, lectura.precision) : null;
@@ -177,6 +252,7 @@ export async function abrir({ perfil, estadoDia, eventos, horario, accion, bloqu
   });
   gps.detener();
   clearInterval(reloj);
+  selfie?.apagar();
   if (!resultado) return cerrar();
 
   // 4) Armar y registrar los eventos (en orden; cada uno con 1 ms de diferencia)
@@ -185,9 +261,15 @@ export async function abrir({ perfil, estadoDia, eventos, horario, accion, bloqu
   const justificacion = necesitaJustificacion() ? $('checada-justificacion').value.trim() : null;
   const ahora = Date.now();
   const registros = [];
+  const foto = selfie?.foto() ?? null;
   for (const [i, paso] of pasos.entries()) {
+    const id = crypto.randomUUID();
+    // La selfie va con el evento principal (inicio/fin de bloque), no con la salida del parque o el fin de pausa previos.
+    const conSelfie = foto && i === pasos.length - 1;
+    const { fecha } = partesLocales(ahora, zona);
+    const ruta = conSelfie ? `${perfil.organizacionId}/${perfil.miembroId}/${fecha.slice(0, 4)}/${fecha.slice(5, 7)}/${id}.${foto.extension}` : null;
     const evento = {
-      id: crypto.randomUUID(),
+      id,
       miembro_id: perfil.miembroId,
       tipo: paso.tipo,
       bloque: ['inicio_bloque', 'fin_bloque'].includes(paso.tipo) ? b : null,
@@ -199,10 +281,11 @@ export async function abrir({ perfil, estadoDia, eventos, horario, accion, bloqu
       precision_m: lectura ? Math.round(lectura.precision * 10) / 10 : null,
       sitio_id: paso.tipo === 'salida_sitio' ? paso.sitio?.id ?? null : hallado?.sitio.id ?? null,
       justificacion,
+      selfie_path: ruta,
       version_app: CONFIG.VERSION_APP,
       user_agent: navigator.userAgent.slice(0, 250)
     };
-    registros.push({ evento, r: await cola.registrar(evento) });
+    registros.push({ evento, r: await cola.registrar(evento, conSelfie ? foto.blob : null) });
   }
   mostrarResultado(registros, zona);
 
@@ -212,6 +295,7 @@ export async function abrir({ perfil, estadoDia, eventos, horario, accion, bloqu
   function cerrar() {
     clearInterval(reloj);
     gps?.detener?.();
+    selfie?.apagar();
     alTerminar();
   }
 }
@@ -243,6 +327,7 @@ function mostrarResultado(registros, zona) {
     $('checada-resultado-titulo').textContent = 'Guardado en el teléfono';
     $('checada-resultado-detalle').textContent = 'Se enviará solo en cuanto haya señal. Cuenta la hora en que checaste.';
     fila('Hora del teléfono', hora(principal.evento.hora_dispositivo), true);
+    if (principal.evento.selfie_path) fila('Selfie', 'Guardada en el teléfono; se enviará con la checada');
   } else {
     icono.dataset.tipo = 'ok'; icono.textContent = '✓';
     $('checada-resultado-titulo').textContent = 'Registrado';
@@ -252,6 +337,7 @@ function mostrarResultado(registros, zona) {
       fila('Hora oficial (servidor)', hora(s.hora_efectiva), true);
       fila('Zona', s.dentro_geocerca === null ? 'No aplica (teletrabajo)' : s.dentro_geocerca ? 'Dentro' : 'Fuera');
       if (s.distancia_sitio_m != null) fila('Distancia según el servidor', `${Math.round(s.distancia_sitio_m)} m`, true);
+      fila('Selfie', principal.evento.selfie_path ? 'Enviada' : 'Sin selfie');
       if (s.motivos_revision?.length) fila('Quedó para revisión por', s.motivos_revision.map((m) => MOTIVOS[m] || m).join('; '));
     }
   }

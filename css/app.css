@@ -84,6 +84,14 @@ textarea.campo__entrada { resize: vertical; min-height: 88px; }
 .mapa .m-escala { stroke: var(--grafito); stroke-width: 2; }
 .mapa .m-texto { font: 500 11px var(--mono); fill: var(--grafito); }
 
+/* Selfie (sin reconocimiento facial) */
+.selfie { display: flex; flex-direction: column; gap: 10px; }
+.selfie__marco { position: relative; width: 100%; aspect-ratio: 4 / 3; border-radius: var(--radio-chico); overflow: hidden; background: #2B302D; }
+.selfie__video, .selfie__foto { width: 100%; height: 100%; object-fit: cover; display: block; }
+.selfie__video { transform: scaleX(-1); }   /* espejo solo en la vista previa en vivo */
+.selfie__botones { display: flex; flex-wrap: wrap; gap: 8px; }
+.selfie__botones > * { flex: 1 1 140px; }
+
 .resultado { display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; }
 .resultado__icono { width: 64px; height: 64px; border-radius: 50%; display: grid; place-items: center; font-size: 34px; font-weight: 600; background: var(--ok-fondo); color: var(--ok-texto); }
 .resultado__icono[data-tipo="guardado"] { background: var(--aviso-fondo); color: var(--aviso-texto); }

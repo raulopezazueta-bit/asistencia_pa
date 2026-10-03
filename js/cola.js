@@ -4,12 +4,19 @@
 import * as api from './api.js';
 import { guardar, leer, borrar, leerTodo } from './almacen.js';
 
+// Orden de envío (ESPECIFICACION §5): primero la selfie (si hay), luego el evento.
+async function enviar(evento, selfieBlob) {
+  if (selfieBlob && evento.selfie_path) await api.subirSelfie(evento.selfie_path, selfieBlob);
+  return api.insertarEvento(evento);
+}
+
 // Devuelve { estado: 'enviado', servidor } | { estado: 'guardado' } | { estado: 'error', mensaje }
-export async function registrar(evento) {
+// selfieBlob solo se conserva en el teléfono mientras el evento esté pendiente.
+export async function registrar(evento, selfieBlob = null) {
   const local = { id: evento.id, miembroId: evento.miembro_id, evento, enviado: false, servidor: null, creadoEn: new Date().toISOString() };
   await guardar('eventos_locales', local);
   try {
-    const servidor = await api.insertarEvento(evento);
+    const servidor = await enviar(evento, selfieBlob);
     await guardar('eventos_locales', { ...local, enviado: true, servidor });
     return { estado: 'enviado', servidor };
   } catch (error) {
@@ -17,7 +24,7 @@ export async function registrar(evento) {
     const pendiente = deRed ? { ...evento, capturado_sin_conexion: true } : evento;
     await guardar('eventos_locales', { ...local, evento: pendiente });
     await guardar('eventos_pendientes', {
-      id: evento.id, miembroId: evento.miembro_id, evento: pendiente, selfieBlob: null,
+      id: evento.id, miembroId: evento.miembro_id, evento: pendiente, selfieBlob,
       intentos: 1, ultimoError: String(error?.message || error), estado: deRed ? 'pendiente' : 'soporte',
       creadoEn: local.creadoEn
     });
@@ -36,8 +43,8 @@ export function enviarPendientes() {
     let enviados = 0;
     for (const p of pendientes) {
       try {
-        const servidor = await api.insertarEvento(p.evento);
-        await borrar('eventos_pendientes', p.id);
+        const servidor = await enviar(p.evento, p.selfieBlob);
+        await borrar('eventos_pendientes', p.id);   // con esto se borra también la selfie del teléfono
         const local = await leer('eventos_locales', p.id);
         if (local) await guardar('eventos_locales', { ...local, enviado: true, servidor });
         enviados++;

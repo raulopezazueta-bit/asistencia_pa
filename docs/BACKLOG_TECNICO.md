@@ -28,7 +28,7 @@ Leyenda: ☐ pendiente · ◐ en curso · ☑ terminado (al cerrar, poner la ver
 
 | Estado | ID | Historia | Criterios de aceptación |
 |---|---|---|---|
-| ☐ | HU-18 | Selfie | §6; ≤ 60 KB; sube a `selfies/{org}/{miembro}/{yyyy}/{mm}/{id}.webp`; respaldo con input de archivo; cámara se apaga al terminar |
+| ☑ v08 | HU-18 | Selfie | §6; ≤ 60 KB; sube a `selfies/{org}/{miembro}/{yyyy}/{mm}/{id}.webp`; respaldo con input de archivo; cámara se apaga al terminar |
 | ☐ | HU-22 | Cola offline | §5 completo; prueba Playwright: checar sin conexión, recargar la app, volver a tener conexión y ver el evento en el servidor con `capturado_sin_conexion = true` y `hora_efectiva = hora_dispositivo` |
 | ☐ | HU-19 | Hora doble | Indicador al usuario si el reloj del teléfono difiere > 10 min de la hora del servidor (obtenida al iniciar sesión) |
 | ☐ | HU-13 | Pausas | Inicio/fin de comida; cierre automático confirmado al terminar bloque |

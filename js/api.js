@@ -161,3 +161,12 @@ export async function insertarEvento(evento) {
   if (error) throw error;
   return data?.[0] ?? null;
 }
+
+// ---------- Selfie (HU-18) ----------
+
+// Sube la selfie al bucket privado. Nunca reemplaza (upsert: false); si ya existe (reintento), se da por subida.
+export async function subirSelfie(ruta, blob) {
+  if (navigator.onLine === false) throw errorSinSenal();
+  const { error } = await conLimite(cliente.storage.from('selfies').upload(ruta, blob, { upsert: false, contentType: blob.type, cacheControl: '31536000' }), 30000);
+  if (error && !(String(error.statusCode) === '409' || /exists|duplicate/i.test(error.message || ''))) throw error;
+}

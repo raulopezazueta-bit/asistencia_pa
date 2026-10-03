@@ -55,6 +55,10 @@ export async function conectarApiLocal(page) {
     }
     if (url.pathname === '/auth/v1/logout') return route.fulfill({ status: 204, headers: CORS });
 
+    // Storage es un servicio aparte que la réplica local no incluye; sus políticas se prueban en supabase/tests (SQL).
+    if (url.pathname.startsWith('/storage/v1/object/')) {
+      return route.fulfill({ status: 200, headers: CORS, contentType: 'application/json', body: JSON.stringify({ Key: url.pathname }) });
+    }
     if (url.pathname.startsWith('/rest/v1/')) {
       const destino = `${API_LOCAL}${url.pathname.slice('/rest/v1'.length)}${url.search}`;
       const encabezados = { ...req.headers() };

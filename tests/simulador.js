@@ -107,9 +107,9 @@ export function eventoServidor(tipo, hora, extra = {}) {
     estado_revision: 'ok', motivos_revision: [], origen: 'app', ...extra };
 }
 
-export async function simularSupabase(page, { sitiosPA = 782, sitiosDemo = 3, eventos = [] } = {}) {
+export async function simularSupabase(page, { sitiosPA = 782, sitiosDemo = 3, eventos = [], configPA = {} } = {}) {
   const registro = [];
-  const estado = { sinRed: false, recibidos: [] };
+  const estado = { sinRed: false, recibidos: [], selfies: [] };
   // Domicilio ficticio del asesor de prueba: RLS solo se lo muestra a él (y a coordinación).
   const domicilio = { ...sitiosFicticios('pa', 1, 'D')[0], id: 'dddddddd-dddd-0000-0000-000000000001', clave_externa: null,
     id_oficial: null, nombre: 'Domicilio ficticio', tipo: 'domicilio', miembro_id: 'aaaaaaaa-0000-0000-0000-000000000001', perimetro_geojson: null };
@@ -149,7 +149,8 @@ export async function simularSupabase(page, { sitiosPA = 782, sitiosDemo = 3, ev
       const filtroActivo = url.searchParams.get('activo');
       let filas = u.miembros.map((m) => ({
         id: m.id, organizacion_id: ORGS[m.org].id, user_id: u.id, nombre_completo: m.nombre_completo, num_empleado: null,
-        rol: m.rol, activo: m.activo, organizaciones: { ...ORGS[m.org] }
+        rol: m.rol, activo: m.activo,
+        organizaciones: { ...ORGS[m.org], config: { ...ORGS[m.org].config, ...(m.org === 'pa' ? configPA : {}) } }
       }));
       if (filtroUser) filas = filas.filter((f) => `eq.${f.user_id}` === filtroUser);
       if (filtroActivo) filas = filas.filter((f) => `eq.${f.activo}` === filtroActivo);
@@ -161,6 +162,41 @@ export async function simularSupabase(page, { sitiosPA = 782, sitiosDemo = 3, ev
       if (!u) return json(route, 401, { code: 'PGRST301', message: 'JWT expired' });
       const filas = u === USUARIOS.asesor && url.searchParams.get('miembro_id') === 'eq.aaaaaaaa-0000-0000-0000-000000000001' ? HORARIO_ASESOR : [];
       return json(route, 200, filas);
+    }
+
+    // Storage: subida de selfies al bucket privado (imita la política selfies_subir y el límite de 150 KB).
+    if (url.pathname.startsWith('/storage/v1/object/selfies/') && req.method() === 'POST') {
+      const u = usuarioDeToken(req);
+      if (!u) return json(route, 400, { statusCode: '403', error: 'Unauthorized', message: 'invalid JWT' });
+      const ruta = decodeURIComponent(url.pathname.slice('/storage/v1/object/selfies/'.length));
+      const [org, miembro] = ruta.split('/');
+      const propio = u.miembros.some((m) => m.activo && m.id === miembro && ORGS[m.org].id === org);
+      let cuerpo = req.postDataBuffer() || Buffer.alloc(0);
+      let tipo = req.headers()['content-type'] || '';
+      // storage-js envía los Blob como multipart/form-data: se extrae el archivo y su tipo real.
+      const limite = /boundary=(.+)$/.exec(tipo)?.[1];
+      if (limite) {
+        const sep = Buffer.from(`--${limite}`);
+        let i = cuerpo.indexOf(sep);
+        while (i !== -1) {
+          const sig = cuerpo.indexOf(sep, i + sep.length);
+          if (sig === -1) break;
+          const parte = cuerpo.subarray(i + sep.length + 2, sig - 2);
+          const finEnc = parte.indexOf('\r\n\r\n');
+          const enc = parte.subarray(0, finEnc).toString();
+          if (/filename=/.test(enc)) {
+            tipo = /content-type:\s*([^\r\n]+)/i.exec(enc)?.[1] || '';
+            cuerpo = parte.subarray(finEnc + 4);
+            break;
+          }
+          i = sig;
+        }
+      }
+      if (!propio) return json(route, 400, { statusCode: '403', error: 'Unauthorized', message: 'new row violates row-level security policy' });
+      if (cuerpo.length > 150000) return json(route, 400, { statusCode: '413', error: 'Payload too large', message: 'The object exceeded the maximum allowed size' });
+      if (estado.selfies.some((x) => x.ruta === ruta)) return json(route, 400, { statusCode: '409', error: 'Duplicate', message: 'The resource already exists' });
+      estado.selfies.push({ ruta, bytes: cuerpo.length, tipo, upsert: req.headers()['x-upsert'] });
+      return json(route, 200, { Key: `selfies/${ruta}`, Id: ruta });
     }
 
     // Inserción de eventos (upsert con ignoreDuplicates). Imita al trigger preparar_evento de forma simplificada;
@@ -237,6 +273,13 @@ export async function simularSupabase(page, { sitiosPA = 782, sitiosDemo = 3, ev
 export async function senal(context, sim, hay) {
   sim.estado.sinRed = !hay;
   await context.setOffline(!hay);
+}
+
+// Toma la selfie con la cámara falsa de Chromium y la acepta.
+export async function tomarSelfie(page) {
+  await page.locator('#selfie-tomar').click();
+  await page.locator('#selfie-usar').click();
+  await page.locator('#selfie-estado', { hasText: 'Selfie lista' }).waitFor();
 }
 
 // Inicia sesión desde la pantalla de acceso.

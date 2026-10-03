@@ -88,6 +88,22 @@
           <span class="campo__etiqueta">Justificación (obligatoria)</span>
           <textarea class="campo__entrada" id="checada-justificacion" rows="3" maxlength="500" placeholder="Ej.: reunión con el comité en la explanada, a una cuadra del parque"></textarea>
         </label>
+        <article class="tarjeta selfie" id="checada-selfie" hidden>
+          <p class="tarjeta__etiqueta">Selfie de evidencia</p>
+          <div class="selfie__marco">
+            <video class="selfie__video" id="selfie-video" playsinline muted aria-label="Vista de la cámara frontal"></video>
+            <img class="selfie__foto" id="selfie-foto" alt="Tu selfie" hidden>
+          </div>
+          <p class="secundario chico" id="selfie-estado" role="status">Sin reconocimiento facial: la foto solo es evidencia.</p>
+          <div class="selfie__botones">
+            <button class="boton boton--lleno" type="button" id="selfie-tomar" hidden>Tomar selfie</button>
+            <button class="boton boton--lleno" type="button" id="selfie-usar" hidden>Usar esta foto</button>
+            <button class="boton" type="button" id="selfie-repetir" hidden>Repetir</button>
+            <label class="boton" id="selfie-archivo-boton" hidden>Abrir la cámara del teléfono
+              <input class="solo-lector" type="file" accept="image/*" capture="user" id="selfie-archivo">
+            </label>
+          </div>
+        </article>
         <p class="secundario chico centrado" id="checada-progreso" role="status">Buscando ubicación…</p>
         <button class="boton-principal" type="button" id="checada-confirmar" disabled>
           <span class="boton-principal__texto" id="checada-confirmar-texto">Confirmar</span>

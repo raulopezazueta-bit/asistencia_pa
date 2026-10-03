@@ -1,7 +1,7 @@
 // HU-17 · Checada con GPS y geocerca (pantalla): GPS simulado, con y sin señal, simulador de Supabase.
 // Reloj de la página: lunes 5-oct-2026 (Culiacán). Catálogo ficticio: Parque Ficticio 001 en 24.76, -107.43 (±45 m).
 import { test, expect } from '@playwright/test';
-import { simularSupabase, entrar, senal, eventoServidor as ev, USUARIOS } from './simulador.js';
+import { simularSupabase, entrar, senal, tomarSelfie, eventoServidor as ev, USUARIOS } from './simulador.js';
 import { CONFIG } from '../config.js';
 
 const DIA = '2026-10-05';
@@ -39,10 +39,12 @@ test('entrada a campo dentro del parque: llega al servidor y cambia el botón', 
   await expect(page.locator('#checada-justificacion-campo')).toBeHidden();
   await expect(page.locator('#checada-mapa .m-zona')).toHaveCount(1);
   await expect(page.locator('#checada-mapa .m-punto')).toHaveCount(1);
+  await tomarSelfie(page);
   await page.locator('#checada-confirmar').click();
   await expect(resultado(page)).toHaveText('Registrado');
   await expect(page.locator('#checada-resultado-lista')).toContainText('Dentro');
-  await expect(page.locator('#checada-resultado-lista')).toContainText('sin selfie');
+  await expect(page.locator('#checada-resultado-lista')).toContainText('SelfieEnviada');
+  await expect(page.locator('#checada-resultado-lista')).not.toContainText('sin selfie');
 
   expect(enviados(sim)).toHaveLength(1);
   const e = enviados(sim)[0];
@@ -62,6 +64,7 @@ test('entrada a campo dentro del parque: llega al servidor y cambia el botón', 
 test('campo fuera de zona: justificación obligatoria (mínimo 5 caracteres)', async ({ page, context }) => {
   const sim = await abrirA(page, context, '16:00', { gps: ENTRE_PARQUES });
   await principal(page).click();
+  await tomarSelfie(page);
   await expect(page.locator('#checada-zona')).toContainText('Fuera de la zona de');
   await expect(page.locator('#checada-justificacion-campo')).toBeVisible();
   await expect(page.locator('#checada-confirmar')).toBeDisabled();
@@ -80,6 +83,7 @@ test('escritorio en teletrabajo: guarda la ubicación sin validar zona ni pedir 
   await principal(page).click();
   await expect(page.locator('#checada-zona')).toHaveText('Teletrabajo: tu ubicación se guarda, pero no se valida la zona.');
   await expect(page.locator('#checada-justificacion-campo')).toBeHidden();
+  await tomarSelfie(page);
   await page.locator('#checada-confirmar').click();
   await expect(page.locator('#checada-resultado-lista')).toContainText('No aplica (teletrabajo)');
   expect(enviados(sim)[0]).toMatchObject({ modalidad: 'teletrabajo', lat: 24.7, lon: -107.5, bloque: 'escritorio' });
@@ -89,6 +93,7 @@ test('sin señal: se guarda en el teléfono y se envía al volver la señal con 
   const sim = await abrirA(page, context, '16:00');
   await senal(context, sim, false);
   await principal(page).click();
+  await tomarSelfie(page);
   await page.locator('#checada-confirmar').click();
   await expect(resultado(page)).toHaveText('Guardado en el teléfono');
   await page.locator('#checada-listo').click();
@@ -109,6 +114,7 @@ test('sin permiso de GPS: avisa, pide justificación en campo y registra sin ubi
   await expect(page.locator('#checada-zona')).toContainText('Se registrará sin ubicación y quedará para revisión.');
   await expect(page.locator('#checada-justificacion-campo')).toBeVisible();
   await page.locator('#checada-justificacion').fill('El teléfono no dio ubicación');
+  await tomarSelfie(page);
   await page.locator('#checada-confirmar').click();
   await expect(page.locator('#checada-resultado-lista')).toContainText('sin ubicación');
   expect(enviados(sim)[0]).toMatchObject({ lat: null, lon: null, precision_m: null });
@@ -123,6 +129,7 @@ test('terminar campo estando en un parque: primero salida del parque, luego fin 
   await expect(page.locator('#boton-principal-detalle')).toHaveText('Estás en Parque Ficticio 001');
   await principal(page).click();
   await expect(page.locator('#checada-titulo')).toHaveText('Salida · campo');
+  await tomarSelfie(page);
   await page.locator('#checada-confirmar').click();
   await expect(resultado(page)).toHaveText('Registrado');
   expect(enviados(sim).map((e) => e.tipo)).toEqual(['salida_sitio', 'fin_bloque']);
@@ -144,6 +151,7 @@ test('sin horario: elige el bloque al checar; cancelar no registra nada', async 
   await principal(page).click();
   await page.locator('#checada-elegir [data-bloque="campo"]').click();
   await expect(page.locator('#checada-titulo')).toHaveText('Entrada · campo');
+  await tomarSelfie(page);
   await page.locator('#checada-confirmar').click();
   await expect(resultado(page)).toHaveText('Registrado');
   expect(enviados(sim)[0]).toMatchObject({ bloque: 'campo', miembro_id: 'aaaaaaaa-0000-0000-0000-000000000002' });

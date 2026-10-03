@@ -10,8 +10,9 @@
 // asis-2026-10-03-v05 · HU-12 estado del día: botón principal según la jornada, bloques del día, horas efectivas, alertas de olvido.
 // asis-2026-10-03-v06 · HU-17 checada con GPS y geocerca: lectura de ubicación al checar, zona en el teléfono, justificación fuera de zona y envío seguro (sin señal se guarda en el teléfono).
 // asis-2026-10-03-v07 · HU-09a guía de alta de personas (docs/ALTA_PERSONAS.md) con su prueba SQL; sin cambios visibles.
+// asis-2026-10-03-v08 · HU-18 selfie de evidencia (sin reconocimiento facial): cámara frontal, vista previa, ≤ 60 KB, respaldo con la cámara del teléfono y envío junto con la checada.
 
-const CACHE_VERSION = 'asis-2026-10-03-v07';
+const CACHE_VERSION = 'asis-2026-10-03-v08';
 
 const CASCARON = [
   './',
@@ -29,6 +30,7 @@ const CASCARON = [
   './js/geo.js',
   './js/cola.js',
   './js/checada.js',
+  './js/camara.js',
   './vendor/supabase.js',
   './fonts/ibm-plex-sans-latin-400-normal.woff2',
   './fonts/ibm-plex-sans-latin-500-normal.woff2',
