@@ -1,0 +1,13 @@
+{
+  "name": "asistencia-pa",
+  "private": true,
+  "description": "Solo herramientas de prueba. La app en producción no usa npm ni build.",
+  "type": "module",
+  "scripts": {
+    "servir": "node tests/servidor.mjs",
+    "test": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.56.1"
+  }
+}

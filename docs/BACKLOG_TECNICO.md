@@ -14,7 +14,7 @@ Leyenda: ☐ pendiente · ◐ en curso · ☑ terminado (al cerrar, poner la ver
 
 | Estado | ID | Historia | Criterios de aceptación |
 |---|---|---|---|
-| ☐ | T-01 | Esqueleto PWA | `index.html`, `manifest.json`, `sw.js` (`asis-AAAA-MM-DD-v01`), `css/app.css` con tokens, fuentes IBM Plex locales, íconos. Instalable en Android; Lighthouse PWA sin errores |
+| ☑ v01 | T-01 | Esqueleto PWA | `index.html`, `manifest.json`, `sw.js` (`asis-AAAA-MM-DD-v01`), `css/app.css` con tokens, fuentes IBM Plex locales, íconos. Instalable en Android; Lighthouse PWA sin errores |
 | ☐ | HU-08 | Inicio de sesión | Correo + contraseña; sesión persistente; si el usuario no tiene fila activa en `miembros`, mensaje claro y cierre de sesión; selector si pertenece a 2 organizaciones |
 | ☐ | HU-07 | Verificar separación | Prueba Playwright o SQL que confirme que un usuario de `iap-demo` no ve datos de `parques-alegres` (ya cubierto en SQL; agregar prueba e2e mínima) |
 | ☐ | HU-10 | Sitios en caché | Descarga `v_sitios_app` al iniciar sesión y una vez al día; guarda en IndexedDB; búsqueda por nombre o clave; funciona sin señal |
