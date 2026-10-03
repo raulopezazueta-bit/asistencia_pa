@@ -8,8 +8,9 @@
 // asis-2026-10-03-v03 · HU-07 prueba e2e de separación entre organizaciones (app → PostgREST → RLS); sin cambios visibles.
 // asis-2026-10-03-v04 · HU-10 catálogo de parques en el teléfono: descarga al iniciar sesión y una vez al día, búsqueda sin señal.
 // asis-2026-10-03-v05 · HU-12 estado del día: botón principal según la jornada, bloques del día, horas efectivas, alertas de olvido.
+// asis-2026-10-03-v06 · HU-17 checada con GPS y geocerca: lectura de ubicación al checar, zona en el teléfono, justificación fuera de zona y envío seguro (sin señal se guarda en el teléfono).
 
-const CACHE_VERSION = 'asis-2026-10-03-v05';
+const CACHE_VERSION = 'asis-2026-10-03-v06';
 
 const CASCARON = [
   './',
@@ -24,6 +25,9 @@ const CASCARON = [
   './js/sitios.js',
   './js/reglas.js',
   './js/jornada.js',
+  './js/geo.js',
+  './js/cola.js',
+  './js/checada.js',
   './vendor/supabase.js',
   './fonts/ibm-plex-sans-latin-400-normal.woff2',
   './fonts/ibm-plex-sans-latin-500-normal.woff2',

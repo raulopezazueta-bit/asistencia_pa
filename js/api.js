@@ -147,3 +147,17 @@ export async function misEventos(miembroId, desdeISO, hastaISO) {
   if (error) throw error;
   return data || [];
 }
+
+// ---------- Checada (HU-17) ----------
+
+// Inserta un evento. El id lo generó el teléfono: reintentar es seguro (si ya existe, no se duplica ni se modifica).
+// Devuelve lo que fijó el servidor (hora, geocerca, revisión) o null si el evento ya estaba guardado.
+export async function insertarEvento(evento) {
+  if (navigator.onLine === false) throw errorSinSenal();
+  const { data, error } = await conLimite(cliente
+    .from('eventos_jornada')
+    .upsert(evento, { onConflict: 'id', ignoreDuplicates: true })
+    .select('id, hora_efectiva, hora_servidor, sitio_id, distancia_sitio_m, dentro_geocerca, estado_revision, motivos_revision'), 15000);
+  if (error) throw error;
+  return data?.[0] ?? null;
+}

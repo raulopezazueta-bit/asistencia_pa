@@ -57,6 +57,54 @@
       <button class="boton boton--ancho" type="button" id="organizacion-salir">Cerrar sesión</button>
     </section>
 
+    <!-- Checada (HU-17) -->
+    <section class="pantalla-checada" id="pantalla-checada" hidden>
+      <header class="encabezado">
+        <div>
+          <p class="encabezado__org">Confirmar checada</p>
+          <h1 class="encabezado__titulo" id="checada-titulo">Entrada</h1>
+        </div>
+      </header>
+      <div class="contenido" id="checada-captura">
+        <div class="vista" id="checada-elegir" hidden>
+          <p class="lista__titulo">¿Qué bloque inicias?</p>
+          <button class="opcion" type="button" data-bloque="escritorio"><span class="opcion__titulo">Bloque de escritorio</span><span class="opcion__detalle">Trabajo de oficina o en casa</span></button>
+          <button class="opcion" type="button" data-bloque="campo"><span class="opcion__titulo">Bloque de campo</span><span class="opcion__detalle">Recorrido por parques</span></button>
+        </div>
+        <figure class="tarjeta mapa" id="checada-mapa-tarjeta">
+          <svg id="checada-mapa" viewBox="0 0 320 180" role="img" aria-label="Mapa esquemático de tu ubicación y el sitio"></svg>
+          <figcaption class="mapa__pie" id="checada-mapa-pie">Buscando ubicación…</figcaption>
+        </figure>
+        <article class="tarjeta">
+          <ul class="lista">
+            <li class="lista__fila"><span>Sitio</span><span class="lista__valor" id="checada-sitio">—</span></li>
+            <li class="lista__fila"><span id="checada-distancia-etiqueta">Distancia</span><span class="lista__valor mono" id="checada-distancia">—</span></li>
+            <li class="lista__fila"><span>Precisión estimada</span><span class="lista__valor mono" id="checada-precision">—</span></li>
+            <li class="lista__fila"><span>Hora del teléfono</span><span class="lista__valor mono" id="checada-hora">—</span></li>
+          </ul>
+        </article>
+        <div class="aviso" id="checada-zona" role="status" hidden></div>
+        <label class="campo" id="checada-justificacion-campo" hidden>
+          <span class="campo__etiqueta">Justificación (obligatoria)</span>
+          <textarea class="campo__entrada" id="checada-justificacion" rows="3" maxlength="500" placeholder="Ej.: reunión con el comité en la explanada, a una cuadra del parque"></textarea>
+        </label>
+        <p class="secundario chico centrado" id="checada-progreso" role="status">Buscando ubicación…</p>
+        <button class="boton-principal" type="button" id="checada-confirmar" disabled>
+          <span class="boton-principal__texto" id="checada-confirmar-texto">Confirmar</span>
+        </button>
+        <button class="boton boton--ancho" type="button" id="checada-cancelar">Cancelar</button>
+      </div>
+      <div class="contenido" id="checada-resultado" hidden>
+        <article class="tarjeta resultado">
+          <p class="resultado__icono" id="checada-resultado-icono" aria-hidden="true"></p>
+          <h2 class="resultado__titulo" id="checada-resultado-titulo"></h2>
+          <p class="secundario" id="checada-resultado-detalle"></p>
+          <ul class="lista resultado__lista" id="checada-resultado-lista"></ul>
+        </article>
+        <button class="boton-principal" type="button" id="checada-listo"><span class="boton-principal__texto">Listo</span></button>
+      </div>
+    </section>
+
     <div class="pantalla-app" id="pantalla-app" hidden>
     <header class="encabezado">
       <div>
@@ -98,7 +146,7 @@
           <p class="secundario chico">Si algo quedó mal registrado, solicita una corrección.</p>
         </article>
         <div class="acciones-secundarias" id="acciones-secundarias"></div>
-        <p class="secundario chico centrado" id="aviso-checada">Las checadas con GPS se activan en la siguiente versión.</p>
+        <p class="secundario chico centrado" id="aviso-pendientes" role="status" hidden></p>
       </section>
 
       <!-- Visitas -->

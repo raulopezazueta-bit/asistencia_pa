@@ -2,6 +2,8 @@
 // Se usa porque la sesión de desarrollo no tiene salida a *.supabase.co; la prueba real es desde el celular.
 // Imita las reglas RLS relevantes: cada usuario solo ve sus filas de `miembros`.
 
+import { sitioParaPunto, evaluarSitio } from '../js/geo.js';
+
 export const URL_SUPABASE = 'https://kkaaaaifzyjnafvmfdqe.supabase.co';
 
 export const ORGS = {
@@ -107,7 +109,7 @@ export function eventoServidor(tipo, hora, extra = {}) {
 
 export async function simularSupabase(page, { sitiosPA = 782, sitiosDemo = 3, eventos = [] } = {}) {
   const registro = [];
-  const estado = { sinRed: false };
+  const estado = { sinRed: false, recibidos: [] };
   // Domicilio ficticio del asesor de prueba: RLS solo se lo muestra a él (y a coordinación).
   const domicilio = { ...sitiosFicticios('pa', 1, 'D')[0], id: 'dddddddd-dddd-0000-0000-000000000001', clave_externa: null,
     id_oficial: null, nombre: 'Domicilio ficticio', tipo: 'domicilio', miembro_id: 'aaaaaaaa-0000-0000-0000-000000000001', perimetro_geojson: null };
@@ -159,6 +161,42 @@ export async function simularSupabase(page, { sitiosPA = 782, sitiosDemo = 3, ev
       if (!u) return json(route, 401, { code: 'PGRST301', message: 'JWT expired' });
       const filas = u === USUARIOS.asesor && url.searchParams.get('miembro_id') === 'eq.aaaaaaaa-0000-0000-0000-000000000001' ? HORARIO_ASESOR : [];
       return json(route, 200, filas);
+    }
+
+    // Inserción de eventos (upsert con ignoreDuplicates). Imita al trigger preparar_evento de forma simplificada;
+    // la comparación exacta con PostGIS se prueba contra la API local (tests/hu17_servidor.spec.js).
+    if (url.pathname === '/rest/v1/eventos_jornada' && req.method() === 'POST') {
+      const u = usuarioDeToken(req);
+      if (!u) return json(route, 401, { code: 'PGRST301', message: 'JWT expired' });
+      const cuerpo = req.postDataJSON();
+      const filas = Array.isArray(cuerpo) ? cuerpo : [cuerpo];
+      const respuesta = [];
+      for (const f of filas) {
+        estado.recibidos.push({ ...f, _prefer: req.headers()['prefer'] || '', _query: url.search });
+        const miembro = u.miembros.find((m) => m.id === f.miembro_id && m.activo);
+        if (!miembro) return json(route, 403, { code: '42501', message: 'new row violates row-level security policy for table "eventos_jornada"' });
+        if (eventos.some((e) => e.id === f.id)) continue;   // ON CONFLICT DO NOTHING
+        const deCatalogo = (x) => ({ ...x, radioM: x.radio_m, toleranciaM: x.tolerancia_m, perimetro: x.perimetro_geojson });
+        const orgId = ORGS[miembro.org].id;
+        const candidatos = catalogo.filter((x) => x.organizacion_id === orgId).map(deCatalogo);
+        const punto = f.lat != null ? { lat: f.lat, lon: f.lon } : null;
+        let sitio = null, distancia = null, dentro = null;
+        const motivos = [];
+        if (punto) {
+          const elegido = f.sitio_id ? candidatos.find((x) => x.id === f.sitio_id) : sitioParaPunto(candidatos, punto, f.precision_m)?.sitio;
+          if (elegido) { const r = evaluarSitio(elegido, punto, f.precision_m); sitio = elegido.id; distancia = r.distancia; dentro = r.dentro; }
+        }
+        if (f.modalidad === 'teletrabajo') dentro = null;
+        else if (!punto) { dentro = false; motivos.push('sin_ubicacion'); }
+        else if (!sitio || !dentro) { dentro = false; motivos.push('fuera_de_geocerca'); }
+        if (['inicio_bloque', 'fin_bloque'].includes(f.tipo) && !f.selfie_path) motivos.push('sin_selfie');
+        const fila = { ...f, organizacion_id: orgId, hora_servidor: f.hora_dispositivo,
+          hora_efectiva: f.hora_dispositivo, sitio_id: sitio, distancia_sitio_m: distancia, dentro_geocerca: dentro,
+          estado_revision: motivos.length ? 'revisar' : 'ok', motivos_revision: motivos, origen: 'app' };
+        eventos.push(fila);
+        respuesta.push(fila);
+      }
+      return json(route, 201, respuesta);
     }
 
     if (url.pathname === '/rest/v1/eventos_jornada' && req.method() === 'GET') {

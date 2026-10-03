@@ -3,11 +3,13 @@ import { CONFIG } from '../config.js';
 import * as sesion from './sesion.js';
 import * as sitios from './sitios.js';
 import * as jornada from './jornada.js';
+import * as checada from './checada.js';
+import * as cola from './cola.js';
 import { calcularEstado, resumenDelDia, formatoHoras } from './reglas.js';
 
 const VISTAS = ['inicio', 'visitas', 'historial', 'perfil'];
 const TITULOS = { inicio: 'Hola', visitas: 'Visitas a parques', historial: 'Historial', perfil: 'Perfil' };
-const PANTALLAS = ['cargando', 'acceso', 'organizacion', 'app'];
+const PANTALLAS = ['cargando', 'acceso', 'organizacion', 'app', 'checada'];
 const ROLES = { asesor: 'Asesoría', coordinador: 'Coordinación', admin: 'Administración' };
 const $ = (id) => document.getElementById(id);
 
@@ -102,6 +104,7 @@ async function aplicar(r) {
       pintarPerfil(r.correo);
       mostrarPantalla('app');
       sincronizarSitios({ forzar: estado.recienEntro }).then(pintarJornada);
+      enviarPendientes();
       pintarJornada();
       estado.recienEntro = false;
       return;
@@ -161,9 +164,14 @@ function conectarFormularios() {
   window.addEventListener('online', () => { if (estado.perfil) revisarSesion(); });
   // Al volver a la app: si cambió el día, se descarga de nuevo el catálogo.
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible' && estado.perfil) { sincronizarSitios(); pintarJornada(); }
+    if (document.visibilityState === 'visible' && estado.perfil) { sincronizarSitios(); enviarPendientes(); pintarJornada(); }
   });
   $('catalogo-actualizar').addEventListener('click', () => sincronizarSitios({ forzar: true }));
+  $('boton-principal').addEventListener('click', () => {
+    const b = $('boton-principal');
+    iniciarChecada(b.dataset.accion, b.dataset.bloque || null);
+  });
+  window.addEventListener('online', () => enviarPendientes());
   let espera;
   $('catalogo-buscar').addEventListener('input', () => {
     clearTimeout(espera);
@@ -212,10 +220,34 @@ function filaJornada(f) {
   return li;
 }
 
+const ACCIONES_ACTIVAS = ['inicio_bloque', 'fin_bloque'];
+
+async function iniciarChecada(accion, bloque) {
+  if (!estado.dia || estado.checando) return;
+  estado.checando = true;
+  try {
+    await checada.abrir({
+      perfil: estado.perfil, estadoDia: estado.dia.e, eventos: estado.dia.eventos, horario: estado.dia.horario,
+      accion, bloque, mostrarPantalla,
+      alTerminar: () => { mostrarPantalla('app'); pintarJornada(); }
+    });
+  } finally {
+    estado.checando = false;
+  }
+}
+
+async function enviarPendientes() {
+  if (!estado.perfil) return;
+  const enviados = await cola.enviarPendientes();
+  if (enviados) pintarJornada();
+}
+
 let pintando = null;
+let repintar = false;
 async function pintarJornada() {
   if (!estado.perfil) return;
-  if (pintando) return pintando;
+  // Si ya se está pintando, se repite al terminar (p. ej. llegó el catálogo con los nombres de los parques).
+  if (pintando) { repintar = true; return pintando; }
   pintando = (async () => {
     const perfil = estado.perfil;
     const ahora = new Date();
@@ -266,18 +298,30 @@ async function pintarJornada() {
       $('boton-principal-texto').textContent = e.boton.texto;
       $('boton-principal-detalle').textContent = e.boton.detalle || '';
     }
-    boton.disabled = true;
+    // Activas en este sprint: iniciar y terminar bloque (HU-17). Pausas (HU-13) y visitas (HU-24) llegan después.
+    boton.disabled = !(e.boton && ACCIONES_ACTIVAS.includes(e.boton.accion));
     $('acciones-secundarias').replaceChildren(...e.secundarias.map((s) => {
       const b = document.createElement('button');
       b.type = 'button';
       b.className = 'boton boton--ancho';
       b.dataset.accion = s.accion;
       b.textContent = s.texto;
-      b.disabled = true;
+      b.disabled = !ACCIONES_ACTIVAS.includes(s.accion);
+      if (!b.disabled) b.addEventListener('click', () => iniciarChecada(s.accion, s.bloque));
       return b;
     }));
+    const { porEnviar, conError } = await cola.contarPendientes(perfil.miembroId);
+    const avisoPend = $('aviso-pendientes');
+    avisoPend.hidden = !porEnviar && !conError;
+    avisoPend.textContent = [
+      porEnviar ? `${porEnviar} ${porEnviar === 1 ? 'checada guardada' : 'checadas guardadas'} en el teléfono, por enviar.` : '',
+      conError ? `${conError} con error: avisa a coordinación.` : ''
+    ].filter(Boolean).join(' ');
     document.body.dataset.estadoJornada = e.estado;
-  })().finally(() => { pintando = null; });
+  })().finally(() => {
+    pintando = null;
+    if (repintar) { repintar = false; pintarJornada(); }
+  });
   return pintando;
 }
 
@@ -385,7 +429,9 @@ async function registrarServiceWorker() {
 }
 
 // Cada minuto se recalcula el estado (las alertas y las horas dependen de la hora).
-setInterval(() => { if (estado.perfil && document.visibilityState === 'visible') pintarJornada(); }, 60_000);
+setInterval(() => {
+  if (estado.perfil && document.visibilityState === 'visible' && !estado.checando) { enviarPendientes(); pintarJornada(); }
+}, 60_000);
 
 function iniciar() {
   $('version-app').textContent = CONFIG.VERSION_APP;

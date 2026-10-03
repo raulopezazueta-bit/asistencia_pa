@@ -59,3 +59,13 @@ export async function reemplazarTodo(nombre, filas) {
     tx.onerror = () => rechazar(tx.error);
   });
 }
+
+export async function leer(nombre, id) {
+  return promesa((await tienda(nombre)).get(id));
+}
+export async function guardar(nombre, fila) {
+  return promesa((await tienda(nombre, 'readwrite')).put(fila));
+}
+export async function borrar(nombre, id) {
+  return promesa((await tienda(nombre, 'readwrite')).delete(id));
+}
