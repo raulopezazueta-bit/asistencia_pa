@@ -5,5 +5,5 @@ export const CONFIG = {
   SUPABASE_URL: 'https://kkaaaaifzyjnafvmfdqe.supabase.co',
   SUPABASE_KEY: 'sb_publishable_jEJAiToYYH1iKayAqMVPGw_cjaEl_Gh',
   ZONA_HORARIA: 'America/Mazatlan',
-  VERSION_APP: 'v11'
+  VERSION_APP: 'v12'
 };

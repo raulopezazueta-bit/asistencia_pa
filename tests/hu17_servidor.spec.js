@@ -90,3 +90,15 @@ test('recorrido completo por la pantalla: checar dentro de PA-1 y ver "Dentro" s
   await expect(page.locator('#checada-resultado-lista')).toContainText('Dentro');
   await expect(page.locator('#checada-resultado-lista')).toContainText('Distancia según el servidor0 m');
 });
+
+test('migración 0002: una pausa fuera de zona no queda para revisión (la zona solo se informa)', async ({ page }) => {
+  const r = await page.evaluate(async () => {
+    const api = await import('./js/api.js');
+    return api.insertarEvento({ id: crypto.randomUUID(), miembro_id: 'aaaaaaaa-0000-0000-0000-000000000001', tipo: 'inicio_pausa', bloque: null,
+      modalidad: 'presencial', hora_dispositivo: new Date().toISOString(), capturado_sin_conexion: false, lat: 24.8060, lon: -107.4373, precision_m: 6, sitio_id: null });
+  });
+  expect(r.dentro_geocerca).toBeNull();
+  expect(r.motivos_revision).toEqual([]);
+  expect(r.estado_revision).toBe('ok');
+  expect(Math.round(r.distancia_sitio_m)).toBe(100);   // ~100 m del perímetro de PA-1: informativo
+});

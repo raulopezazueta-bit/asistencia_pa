@@ -112,7 +112,8 @@ export function eventoServidor(tipo, hora, extra = {}) {
 // rechazarEventos: el servidor rechaza los eventos (validación) → deben quedar "para soporte".
 // Las rutas se instalan en el contexto: así también se atienden los envíos del service worker (Background Sync).
 // horaServidor: Date que el "servidor" sella en el token (HU-19, diferencia de reloj).
-export async function simularSupabase(page, { sitiosPA = 782, sitiosDemo = 3, eventos = [], configPA = {}, rechazarEventos = false, horaServidor = null } = {}) {
+// horarioAsesor: reemplaza el horario del asesor de prueba (filas como las de la tabla horarios).
+export async function simularSupabase(page, { sitiosPA = 782, sitiosDemo = 3, eventos = [], configPA = {}, rechazarEventos = false, horaServidor = null, horarioAsesor = HORARIO_ASESOR } = {}) {
   const registro = [];
   const estado = { sinRed: false, recibidos: [], selfies: [] };
   // Domicilio ficticio del asesor de prueba: RLS solo se lo muestra a él (y a coordinación).
@@ -165,7 +166,7 @@ export async function simularSupabase(page, { sitiosPA = 782, sitiosDemo = 3, ev
     if (url.pathname === '/rest/v1/horarios' && req.method() === 'GET') {
       const u = usuarioDeToken(req);
       if (!u) return json(route, 401, { code: 'PGRST301', message: 'JWT expired' });
-      const filas = u === USUARIOS.asesor && url.searchParams.get('miembro_id') === 'eq.aaaaaaaa-0000-0000-0000-000000000001' ? HORARIO_ASESOR : [];
+      const filas = u === USUARIOS.asesor && url.searchParams.get('miembro_id') === 'eq.aaaaaaaa-0000-0000-0000-000000000001' ? horarioAsesor : [];
       return json(route, 200, filas);
     }
 
@@ -220,7 +221,13 @@ export async function simularSupabase(page, { sitiosPA = 782, sitiosDemo = 3, ev
         if (eventos.some((e) => e.id === f.id)) continue;   // ON CONFLICT DO NOTHING
         const deCatalogo = (x) => ({ ...x, radioM: x.radio_m, toleranciaM: x.tolerancia_m, perimetro: x.perimetro_geojson });
         const orgId = ORGS[miembro.org].id;
-        const candidatos = catalogo.filter((x) => x.organizacion_id === orgId).map(deCatalogo);
+        // Igual que preparar_evento (migraciones 0001 + 0002)
+        const cfg = { ...ORGS[miembro.org].config, ...(miembro.org === 'pa' ? configPA : {}) };
+        const esPausa = ['inicio_pausa', 'fin_pausa'].includes(f.tipo);
+        const contraDomicilio = f.modalidad === 'teletrabajo' && cfg.validar_domicilio === true;
+        const candidatos = catalogo.filter((x) => x.organizacion_id === orgId
+          && (!contraDomicilio || (x.tipo === 'domicilio' && x.miembro_id === miembro.id))).map(deCatalogo);
+        if (contraDomicilio && f.sitio_id && !candidatos.some((x) => x.id === f.sitio_id)) f.sitio_id = null;
         const punto = f.lat != null ? { lat: f.lat, lon: f.lon } : null;
         let sitio = null, distancia = null, dentro = null;
         const motivos = [];
@@ -228,7 +235,7 @@ export async function simularSupabase(page, { sitiosPA = 782, sitiosDemo = 3, ev
           const elegido = f.sitio_id ? candidatos.find((x) => x.id === f.sitio_id) : sitioParaPunto(candidatos, punto, f.precision_m)?.sitio;
           if (elegido) { const r = evaluarSitio(elegido, punto, f.precision_m); sitio = elegido.id; distancia = r.distancia; dentro = r.dentro; }
         }
-        if (f.modalidad === 'teletrabajo') dentro = null;
+        if ((f.modalidad === 'teletrabajo' && !cfg.validar_domicilio) || esPausa) dentro = null;
         else if (!punto) { dentro = false; motivos.push('sin_ubicacion'); }
         else if (!sitio || !dentro) { dentro = false; motivos.push('fuera_de_geocerca'); }
         if (['inicio_bloque', 'fin_bloque'].includes(f.tipo) && !f.selfie_path) motivos.push('sin_selfie');

@@ -153,13 +153,16 @@ test('contra la API local (trigger real): llega con capturado_sin_conexion y hor
   await senal(context, red, false);
   await page.locator('#boton-principal').click();
   if (await page.locator('#checada-elegir').isVisible()) await page.locator('#checada-elegir [data-bloque="campo"]').click();
-  await tomarSelfie(page);
+  // La base local se comparte entre pruebas: la acción puede ser una pausa (sin selfie) según lo que ya haya.
+  if (await page.locator('#checada-selfie').isVisible()) await tomarSelfie(page);
   await page.locator('#checada-confirmar').click();
   await expect(page.locator('#checada-resultado:visible #checada-resultado-titulo')).toHaveText('Guardado en el teléfono');
   await page.locator('#checada-listo').click();
   // Puede ser más de un evento (p. ej. salida del parque + fin de bloque), según lo que ya haya en la base local.
   const todos = await pendientes(page);
-  const p = todos.find((x) => ['inicio_bloque', 'fin_bloque'].includes(x.evento.tipo));
+  // La checada principal es la última (p. ej. fin_bloque después de salida_sitio)
+  const p = [...todos].sort((a, b) => a.evento.hora_dispositivo.localeCompare(b.evento.hora_dispositivo)).at(-1);
+  const esPausa = ['inicio_pausa', 'fin_pausa'].includes(p.evento.tipo);
   await page.reload();
   await expect(indicador(page)).toHaveText(`${todos.length} por enviar`);
 
@@ -174,6 +177,6 @@ test('contra la API local (trigger real): llega con capturado_sin_conexion y hor
   expect(fila.capturado_sin_conexion).toBe(true);
   expect(Date.parse(fila.hora_efectiva)).toBe(Date.parse(p.evento.hora_dispositivo));
   expect(Date.parse(fila.hora_servidor)).toBeGreaterThan(Date.parse(fila.hora_efectiva) + 1000);
-  expect(fila.dentro_geocerca).toBe(true);
+  expect(fila.dentro_geocerca).toBe(esPausa ? null : true);   // en pausas la zona no se revisa (0002)
   expect(fila.selfie_path).toBe(p.evento.selfie_path);
 });

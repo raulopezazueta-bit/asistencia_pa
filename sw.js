@@ -14,8 +14,9 @@
 // asis-2026-10-03-v09 · HU-22 cola sin señal completa: reintentos escalonados, envío en segundo plano (Background Sync), indicador "Todo enviado / N por enviar", limpieza a 35 días.
 // asis-2026-10-03-v10 · HU-19 hora doble: aviso si el reloj del teléfono difiere del servidor más que umbral_desfase_min (medido al iniciar sesión y en cada renovación).
 // asis-2026-10-03-v11 · HU-13 pausas: inicio y regreso de comida/pausa, terminar bloque o iniciar el siguiente desde la pausa con confirmación.
+// asis-2026-10-03-v12 · HU-20 teletrabajo (modalidad desde horarios; con validar_domicilio solo cuenta el domicilio propio) y pausas sin revisión de zona (requiere migración 0002).
 
-const CACHE_VERSION = 'asis-2026-10-03-v11';
+const CACHE_VERSION = 'asis-2026-10-03-v12';
 
 const CASCARON = [
   './',

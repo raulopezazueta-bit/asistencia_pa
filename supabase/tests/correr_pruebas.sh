@@ -13,5 +13,7 @@ for f in "$(dirname "$0")"/../migrations/*.sql; do $P -d t -v ON_ERROR_STOP=1 -f
 ERR=$($P -d t -f "$(dirname "$0")/pruebas_esquema.sql" 2>&1 | grep -c ERROR || true)
 echo "Errores en pruebas_esquema.sql: $ERR (esperados: 5)"
 $P -d t -f "$(dirname "$0")/pruebas_jornada_partida.sql"
+R0002=$($P -d t -v ON_ERROR_STOP=1 -f "$(dirname "$0")/pruebas_0002.sql" 2>&1 || true)
+echo "$R0002" | grep -q "PRUEBAS 0002: OK" && echo "PRUEBAS 0002: OK" || { echo "$R0002" | grep -E "ERROR|assert" ; echo "PRUEBAS 0002: FALLA"; su postgres -c "$PGBIN/pg_ctl -D $DIR stop >/dev/null"; exit 1; }
 su postgres -c "$PGBIN/pg_ctl -D $DIR stop >/dev/null"
 [ "$ERR" = "5" ] && echo "PRUEBAS SQL: OK" || { echo "PRUEBAS SQL: REVISAR"; exit 1; }

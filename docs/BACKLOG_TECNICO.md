@@ -4,6 +4,9 @@ Derivado del product backlog (38 historias). Aquí solo está lo que construye l
 Los IDs `HU-xx` coinciden con el backlog maestro. Estado al 2-oct-2026: **HU-06 (modelo de datos) hecho** en
 `supabase/migrations/0001_esquema_inicial.sql`, con pruebas en `supabase/tests/`.
 
+Migraciones: `0001` aplicada; **`0002_pausas_y_domicilio.sql` (v12) debe aplicarse en el SQL Editor de Supabase**
+(pausas sin revisión de zona por decisión del PO del 3-oct-2026; teletrabajo validado contra el domicilio propio).
+
 Leyenda: ☐ pendiente · ◐ en curso · ☑ terminado (al cerrar, poner la versión `vNN`)
 
 ---
@@ -32,7 +35,7 @@ Leyenda: ☐ pendiente · ◐ en curso · ☑ terminado (al cerrar, poner la ver
 | ☑ v09 | HU-22 | Cola offline | §5 completo; prueba Playwright: checar sin conexión, recargar la app, volver a tener conexión y ver el evento en el servidor con `capturado_sin_conexion = true` y `hora_efectiva = hora_dispositivo` |
 | ☑ v10 | HU-19 | Hora doble | Indicador al usuario si el reloj del teléfono difiere > 10 min de la hora del servidor (obtenida al iniciar sesión) |
 | ☑ v11 | HU-13 | Pausas | Inicio/fin de comida; cierre automático confirmado al terminar bloque |
-| ☐ | HU-20 | Bloque de escritorio en teletrabajo | Modalidad desde `horarios`; sin validación de zona mientras `validar_domicilio = false` |
+| ☑ v12 | HU-20 | Bloque de escritorio en teletrabajo | Modalidad desde `horarios`; sin validación de zona mientras `validar_domicilio = false` |
 | ☐ | HU-33 | Inalterabilidad verificada | Prueba e2e: intentar `update`/`delete` con la llave pública falla; la interfaz no ofrece editar ni borrar |
 | ☐ | HU-14 | Mis horas | Horas del día y de la semana desde `v_jornada_diaria` + eventos locales no enviados |
 

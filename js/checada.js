@@ -179,7 +179,12 @@ export async function abrir({ perfil, estadoDia, eventos, horario, accion, bloqu
   const modalidad = principal.tipo !== 'inicio_bloque' && inicioDelBloque?.modalidad
     ? inicioDelBloque.modalidad
     : horario.find((h) => h.bloque === b)?.modalidad || 'presencial';
-  const validarZona = !(modalidad === 'teletrabajo' && !config.validar_domicilio);
+  // Zona (igual que el servidor, migración 0002): en pausas y en teletrabajo sin validar_domicilio la zona no se revisa;
+  // en teletrabajo con validar_domicilio solo cuenta el domicilio propio, nunca un parque cercano.
+  const esPausa = ['inicio_pausa', 'fin_pausa'].includes(principal.tipo);
+  const contraDomicilio = modalidad === 'teletrabajo' && config.validar_domicilio === true;
+  const zonaInformativa = esPausa ? 'pausa' : (modalidad === 'teletrabajo' && !config.validar_domicilio ? 'teletrabajo' : null);
+  const candidatos = contraDomicilio ? catalogo.filter((s) => s.tipo === 'domicilio' && s.miembroId === perfil.miembroId) : catalogo;
   const TITULOS = {
     inicio_bloque: [`Entrada · ${b}`, 'Confirmar entrada'],
     fin_bloque: [`Salida · ${b}`, 'Confirmar salida'],
@@ -214,7 +219,7 @@ export async function abrir({ perfil, estadoDia, eventos, horario, accion, bloqu
   if (esBloque || selfieRequerida) selfie = prepararSelfie({ requerida: selfieRequerida, alCambiar: () => actualizarBoton() });
 
   const pintar = (restantes) => {
-    hallado = lectura ? sitioParaPunto(catalogo, lectura, lectura.precision) : null;
+    hallado = lectura ? sitioParaPunto(candidatos, lectura, lectura.precision) : null;
     dibujarMapa(lectura, hallado);
     $('checada-sitio').textContent = hallado ? hallado.sitio.nombre : (lectura ? 'Ningún sitio a menos de 500 m' : '—');
     $('checada-distancia-etiqueta').textContent = hallado && !hallado.conPoligono ? 'Distancia al centro' : 'Distancia al perímetro';
@@ -228,20 +233,23 @@ export async function abrir({ perfil, estadoDia, eventos, horario, accion, bloqu
     zonaEl.hidden = !lectura && !terminoGPS;
     if (!lectura && terminoGPS) {
       zonaEl.className = 'aviso';
-      zonaEl.textContent = errorGPS === 'permiso'
-        ? 'No diste permiso de ubicación. Se registrará sin ubicación y quedará para revisión.'
-        : 'No se pudo obtener tu ubicación. Se registrará sin ubicación y quedará para revisión.';
-    } else if (lectura && !validarZona) {
+      zonaEl.textContent = (errorGPS === 'permiso' ? 'No diste permiso de ubicación. ' : 'No se pudo obtener tu ubicación. ')
+        + (zonaInformativa ? 'Se registrará sin ubicación.' : 'Se registrará sin ubicación y quedará para revisión.');
+    } else if (lectura && zonaInformativa) {
       zonaEl.className = 'aviso aviso--ok';
-      zonaEl.textContent = 'Teletrabajo: tu ubicación se guarda, pero no se valida la zona.';
+      zonaEl.textContent = zonaInformativa === 'pausa'
+        ? 'Pausa: tu ubicación se guarda, pero no se revisa la zona.'
+        : 'Teletrabajo: tu ubicación se guarda, pero no se valida la zona.';
     } else if (hallado?.dentro) {
       zonaEl.className = 'aviso aviso--ok';
       zonaEl.textContent = `Dentro de la zona de ${hallado.sitio.nombre}.`;
     } else if (lectura) {
       zonaEl.className = 'aviso';
-      zonaEl.textContent = (hallado
+      zonaEl.textContent = hallado
         ? `Fuera de la zona de ${hallado.sitio.nombre} (a ${Math.round(hallado.distancia)} m).`
-        : 'No estás en ningún sitio del catálogo.') + (esBloque ? '' : ' En pausas no se pide justificación.');
+        : contraDomicilio
+          ? (candidatos.length ? 'Estás a más de 500 m de tu domicilio registrado.' : 'No tienes un domicilio registrado en la app: pide a coordinación que lo dé de alta. Quedará para revisión.')
+          : 'No estás en ningún sitio del catálogo.';
     }
     $('checada-justificacion-campo').hidden = !(terminoGPS || lectura) || !necesitaJustificacion();
     $('checada-progreso').textContent = terminoGPS
@@ -299,7 +307,7 @@ export async function abrir({ perfil, estadoDia, eventos, horario, accion, bloqu
     };
     registros.push({ evento, r: await cola.registrar(evento, conSelfie ? foto.blob : null) });
   }
-  mostrarResultado(registros, zona);
+  mostrarResultado(registros, zona, esPausa);
 
   await new Promise((r) => { $('checada-listo').onclick = r; });
   return cerrar();
@@ -312,7 +320,7 @@ export async function abrir({ perfil, estadoDia, eventos, horario, accion, bloqu
   }
 }
 
-function mostrarResultado(registros, zona) {
+function mostrarResultado(registros, zona, esPausa) {
   $('checada-captura').hidden = true;
   $('checada-resultado').hidden = false;
   const principal = registros[registros.length - 1];
@@ -347,7 +355,7 @@ function mostrarResultado(registros, zona) {
     $('checada-resultado-detalle').textContent = s ? 'El servidor recibió tu checada.' : 'Esta checada ya estaba registrada.';
     if (s) {
       fila('Hora oficial (servidor)', hora(s.hora_efectiva), true);
-      fila('Zona', s.dentro_geocerca === null ? 'No aplica (teletrabajo)' : s.dentro_geocerca ? 'Dentro' : 'Fuera');
+      fila('Zona', s.dentro_geocerca === null ? (esPausa ? 'No se revisa (pausa)' : 'No aplica (teletrabajo)') : s.dentro_geocerca ? 'Dentro' : 'Fuera');
       if (s.distancia_sitio_m != null) fila('Distancia según el servidor', `${Math.round(s.distancia_sitio_m)} m`, true);
       fila('Selfie', principal.evento.selfie_path ? 'Enviada' : 'Sin selfie');
       if (s.motivos_revision?.length) fila('Quedó para revisión por', s.motivos_revision.map((m) => MOTIVOS[m] || m).join('; '));
