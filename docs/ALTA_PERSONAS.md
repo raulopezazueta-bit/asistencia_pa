@@ -7,7 +7,7 @@ en el panel de Supabase en tres pasos: **usuario → miembro → horario**. Toma
 > convenio del registro electrónico. Hasta entonces, usa solo usuarios de prueba (por ejemplo `asesor1@prueba.test`).
 
 Todos los bloques de SQL de esta guía se pegan en **SQL Editor → New query → Run**. Cambia solo lo que está
-entre comillas en la parte de `datos` de cada bloque.
+entre comillas en la parte de `datos` de cada bloque. La persona se identifica siempre por su **correo**.
 
 ---
 
@@ -19,7 +19,6 @@ entre comillas en la parte de `datos` de cada bloque.
 4. Deja marcada la casilla **Auto Confirm User**. Sin ella, la persona no podrá entrar hasta confirmar su correo,
    y el plan gratuito de Supabase envía muy pocos correos por hora.
 5. Toca **Create user**.
-6. En la lista, abre el usuario y **copia su `User UID`**. Es un código como `3f1c2a9e-…`; lo usarás en el paso 2.
 
 Entrega la contraseña en persona o por un medio privado, nunca en un grupo.
 
@@ -31,23 +30,23 @@ Sin esta fila, la app dice *"Tu cuenta existe, pero no tiene un alta activa en n
 -- PASO 2 · Alta en miembros. Cambia los 5 valores de "datos".
 with datos as (
   select 'parques-alegres'                        as organizacion,   -- slug de la organización
-         'PEGA-AQUI-EL-USER-UID'                  as user_id,        -- el User UID del paso 1
+         'correo@de.la.persona'                   as correo,         -- el correo del paso 1
          'Nombre Apellido Apellido'               as nombre,
          'PA-000'                                 as num_empleado,   -- opcional: deja '' si no hay
          'asesor'                                 as rol             -- asesor | coordinador | admin
 )
 insert into public.miembros (organizacion_id, user_id, nombre_completo, num_empleado, rol)
-select o.id, d.user_id::uuid, d.nombre, nullif(d.num_empleado, ''), d.rol
+select o.id, u.id, d.nombre, nullif(d.num_empleado, ''), d.rol
 from datos d
 join public.organizaciones o on o.slug = d.organizacion
+join auth.users u on lower(u.email) = lower(trim(d.correo))
 returning id as miembro_id, nombre_completo, rol;
 ```
 
 Si sale un error:
-- `invalid input syntax for type uuid`: no pegaste bien el User UID (debe ir completo, entre comillas).
-- `violates foreign key constraint`: el User UID no existe en Authentication. Revisa el paso 1.
 - `duplicate key … organizacion_id, user_id`: esa persona ya está dada de alta en esa organización.
-- `0 rows`: el slug de la organización está mal escrito. Revísalo con `select slug, nombre from organizaciones;`.
+- `0 rows`: el correo no coincide con ningún usuario del paso 1, o el slug de la organización está mal escrito.
+  Revísalos con `select email from auth.users;` y `select slug, nombre from organizaciones;`.
 
 ## Paso 3 · Cargar su horario
 
@@ -59,7 +58,7 @@ Ajusta días, horas y modalidad a lo que acuerde Parques Alegres.
 -- PASO 3 · Horario semanal. Cambia los valores de "datos" y, si hace falta, la lista de bloques.
 with datos as (
   select 'parques-alegres'        as organizacion,
-         'PEGA-AQUI-EL-USER-UID'  as user_id,
+         'correo@de.la.persona'   as correo,
          current_date             as vigente_desde      -- desde cuándo aplica
 ),
 dias as (select generate_series(1, 5) as dia),          -- 1 = lunes … 5 = viernes (6 = sábado, 7 = domingo)
@@ -71,13 +70,14 @@ insert into public.horarios (organizacion_id, miembro_id, dia_semana, bloque, ho
 select m.organizacion_id, m.id, dias.dia, b.bloque, b.hora_inicio, b.hora_fin, b.modalidad, d.vigente_desde
 from datos d
 join public.organizaciones o on o.slug = d.organizacion
-join public.miembros m on m.organizacion_id = o.id and m.user_id = d.user_id::uuid
+join auth.users u on lower(u.email) = lower(trim(d.correo))
+join public.miembros m on m.organizacion_id = o.id and m.user_id = u.id
 cross join dias
 cross join bloques b
 returning dia_semana, bloque, hora_inicio, hora_fin, modalidad;
 ```
 
-Debe responder 10 filas (5 días × 2 bloques). Si responde 0, el paso 2 no se hizo o el User UID es otro.
+Debe responder 10 filas (5 días × 2 bloques). Si responde 0, el paso 2 no se hizo o el correo está mal escrito.
 
 Si la persona no tiene horario fijo, puedes omitir este paso: la app le preguntará *"¿Qué bloque inicias?"* al checar.
 
@@ -130,7 +130,7 @@ where u.id = m.user_id and u.email = 'correo@de.la.persona';
 Para impedir que vuelva a entrar, también cámbiale la contraseña en **Authentication → Users**.
 
 ### Persona en dos organizaciones
-Repite el paso 2 con el mismo User UID y el slug de la otra organización. Al entrar, la app le preguntará con cuál
+Repite el paso 2 con el mismo correo y el slug de la otra organización. Al entrar, la app le preguntará con cuál
 organización va a registrar, y podrá cambiarla desde **Perfil**.
 
 ### Olvidó su contraseña
@@ -144,7 +144,7 @@ correo. Recuerda que el plan gratuito envía pocos correos por hora.
 | Causa probable | Cómo se ve en el paso 4 | Qué hacer |
 |---|---|---|
 | No se hizo el paso 2 | La consulta no devuelve filas | Hacer el paso 2 |
-| Se pegó el User UID de otra persona | Sale con otro correo | Revisar el UID |
+| El usuario se creó con otro correo | La consulta no devuelve filas | Revisar el correo en Authentication → Users |
 | Está dada de baja | `activo = false` | Reactivar: `update public.miembros set activo = true, fecha_baja = null where id = '…';` |
 | La organización está desactivada | (revisar `select slug, activa from organizaciones;`) | Pedir a Ecosistémica que la revise |
 
