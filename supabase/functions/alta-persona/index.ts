@@ -1,7 +1,8 @@
 // Función de Supabase (Edge Function) "alta-persona" · HU-09.
 // Crea cuentas de acceso y da de baja o reactiva personas. Usa la llave secreta (service_role) que Supabase entrega
 // a la función como variable de entorno: NUNCA se escribe en este repositorio ni viaja al teléfono.
-// La lógica (y las reglas de quién puede hacer qué) está en logica.js. Cómo publicarla: docs/ALTA_PERSONAS.md.
+// La lógica (y las reglas de quién puede hacer qué) está en logica.js. Cómo publicarla: docs/ALTA_PERSONAS.md
+// (en el editor de Supabase se pega index_un_archivo.ts, que es este archivo con logica.js incluido).
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { atender } from './logica.js';
 

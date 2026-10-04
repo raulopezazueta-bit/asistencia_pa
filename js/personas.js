@@ -306,16 +306,17 @@ function tarjeta(m, cuenta, filasHorario) {
 
 export async function pintarPersonas() {
   const p = ctx.perfil;
+  let errorCuentas = '';
   try {
     const [personas, horarios, cuentas] = await Promise.all([
       api.personasDeOrganizacion(p.organizacionId), api.horariosDeOrganizacion(p.organizacionId),
-      api.altaPersona({ accion: 'listar', organizacion_id: p.organizacionId }).then((r) => r.personas).catch(() => null)
+      api.altaPersona({ accion: 'listar', organizacion_id: p.organizacionId }).then((r) => r.personas).catch((e) => { errorCuentas = e.message; return null; })
     ]);
     const { hoy } = fechas();
     const vigentes = horarios.filter((h) => (!h.vigente_desde || h.vigente_desde <= hoy) && (!h.vigente_hasta || h.vigente_hasta >= hoy));
     $('personas-lista').replaceChildren(...personas.map((m) => tarjeta(m, cuentas?.find((c) => c.miembro_id === m.id), vigentes.filter((h) => h.miembro_id === m.id))));
     $('personas-nota').textContent = cuentas ? `${personas.filter((m) => m.activo).length} activas · ${personas.filter((m) => !m.activo).length} de baja`
-      : 'No se pudo consultar el servicio de cuentas (correos y accesos). ¿Ya se publicó la función alta-persona en Supabase?';
+      : `No se pudo consultar el servicio de cuentas (correos y accesos): ${errorCuentas || 'revisa la función alta-persona en Supabase'}`;
   } catch (e) {
     ctx.aviso(api.esErrorDeRed(e) ? 'Sin señal: el panel necesita conexión.' : `No se pudo leer la lista de personas: ${e.message}`, 'critico');
   }

@@ -27,8 +27,9 @@
 // asis-2026-10-04-v22 · HU-15 recordatorio de salida: notificación del teléfono (app abierta o en segundo plano) si un bloque sigue abierto tras su fin + recordatorio_salida_min; una vez por bloque y día.
 // asis-2026-10-04-v23 · T-02 (parte 1) panel cómodo en el celular: menú fijo de secciones con pendientes, incidencias antes de reportes y acceso al panel desde Inicio.
 // asis-2026-10-04-v24 · HU-09 personas desde el panel (administración): alta con contraseña temporal, rol, horario con historia, baja que bloquea el acceso y reactivación; cambio de contraseña en la app (requiere publicar la función alta-persona).
+// asis-2026-10-04-v25 · HU-09 ajuste: si la función alta-persona no responde, el panel explica la causa (ya no dice "sin señal"); función en un solo archivo para publicarla más fácil.
 
-const CACHE_VERSION = 'asis-2026-10-04-v24';
+const CACHE_VERSION = 'asis-2026-10-04-v25';
 
 const CASCARON = [
   './',

@@ -438,7 +438,12 @@ export async function altaPersona(solicitud) {
     // Respuesta del servidor con su mensaje en español (403, 409, …)
     const cuerpo = await error.context?.json?.().catch(() => null);
     if (cuerpo?.error) { const e = new Error(cuerpo.error); e.status = error.context.status; throw e; }
-    if (error.name === 'FunctionsFetchError' || error.name === 'FunctionsRelayError') throw errorSinSenal();
+    if (error.name === 'FunctionsFetchError' || error.name === 'FunctionsRelayError') {
+      if (navigator.onLine === false) throw errorSinSenal();
+      // Con señal, esto casi siempre es la función: no publicada, con otro nombre, sin logica.js o con "Verify JWT" activado
+      throw new Error('No se pudo comunicar con la función alta-persona de Supabase. Revisa en Edge Functions que esté publicada con ese nombre, con sus dos archivos y con la verificación de JWT desactivada.');
+    }
+    if (error.name === 'FunctionsHttpError') throw new Error(`La función alta-persona de Supabase respondió con un error (${error.context?.status}). Revisa en Edge Functions que esté publicada con ese nombre, con sus dos archivos y con la verificación de JWT desactivada.`);
     throw error;
   }
   return data;

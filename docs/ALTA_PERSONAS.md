@@ -169,12 +169,11 @@ llave secreta en ningún lado**.
 
 1. En Supabase: **Edge Functions → Deploy a new function → Via Editor**.
 2. Nombre de la función: `alta-persona` (exacto, con guion).
-3. El editor trae un archivo `index.ts` de ejemplo: borra su contenido y pega el de
-   `supabase/functions/alta-persona/index.ts` de este repositorio.
-4. Agrega un archivo nuevo llamado `logica.js` (botón para agregar archivo del editor) y pega el contenido de
-   `supabase/functions/alta-persona/logica.js`.
-5. **Deploy function**. Espera a que diga que está activa. (Si el editor no deja agregar un segundo archivo, avisa a
-   Ecosistémica: se entrega una versión de un solo archivo.)
+3. El editor trae un archivo `index.ts` de ejemplo: borra todo su contenido y pega el de
+   `supabase/functions/alta-persona/index_un_archivo.ts` de este repositorio (es la función completa en un solo
+   archivo; no hace falta agregar otro).
+4. (Alternativa para quien use la línea de comandos de Supabase: publicar la carpeta con `index.ts` y `logica.js`.)
+5. **Deploy function**. Espera a que diga que está activa.
 6. En los ajustes de la función, desactiva **"Verify JWT with legacy secret"** (o "Enforce JWT verification"): la
    función revisa por su cuenta quién la llama y solo atiende a administración. Si la dejas activada y el panel dice
    "No se pudo consultar el servicio de cuentas", esta es la causa.

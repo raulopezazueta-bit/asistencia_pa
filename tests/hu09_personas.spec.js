@@ -267,3 +267,30 @@ test('contra la API local (RLS real): administración cambia rol y horario; coor
   await t2.locator('[data-persona="guardar"]').click();
   await expect(page.locator('#personas-lista .incidencia', { hasText: 'Asesor Demo' })).toContainText('Asesoría');
 });
+
+test('si la función alta-persona no responde (no publicada o bloqueada), el panel lo dice claro, no "sin señal"', async ({ page }) => {
+  await page.clock.setFixedTime(new Date('2026-10-05T10:00:00-07:00'));
+  await simularSupabase(page, { sitiosPA: 20 });
+  // Como en Supabase cuando la función no existe o la verificación de JWT la frena: respuesta sin permisos CORS
+  await page.context().route('**/functions/v1/alta-persona', (route) => route.request().method() === 'OPTIONS'
+    ? route.fulfill({ status: 404, body: 'Not found' }) : route.fulfill({ status: 401, body: 'Invalid JWT' }));
+  await page.goto('index.html');
+  await entrar(page, USUARIOS.admin);
+  await expect(page.locator('#pantalla-app')).toBeVisible();
+  await page.goto('panel.html');
+  await expect(page.locator('#personas-nota')).toContainText('función alta-persona');
+  await expect(page.locator('#personas-nota')).toContainText('verificación de JWT desactivada');
+  await page.locator('#personas-nueva').click();
+  await page.locator('#alta-nombre').fill('Persona Ficticia');
+  await page.locator('#alta-correo').fill('ficticia@prueba.test');
+  await page.locator('#alta-guardar').click();
+  await expect(page.locator('#alta-error')).toContainText('verificación de JWT desactivada');
+  await expect(page.locator('#alta-error')).not.toContainText('Sin señal');
+});
+
+test('la versión de un solo archivo de la función está al día con index.ts + logica.js', async () => {
+  const { armar } = await import('../supabase/functions/alta-persona/armar_un_archivo.mjs');
+  const { readFileSync } = await import('node:fs');
+  const actual = readFileSync(new URL('../supabase/functions/alta-persona/index_un_archivo.ts', import.meta.url), 'utf8');
+  expect(actual, 'corre: node supabase/functions/alta-persona/armar_un_archivo.mjs').toBe(armar());
+});
