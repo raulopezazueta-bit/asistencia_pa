@@ -3,10 +3,14 @@
 // Imita las reglas RLS relevantes: cada usuario solo ve sus filas de `miembros`.
 
 import { readFileSync } from 'node:fs';
+import { generateKeyPairSync } from 'node:crypto';
 import { atender as atenderAltaPersona } from '../supabase/functions/alta-persona/logica.js';
 import { sitioParaPunto, evaluarSitio } from '../js/geo.js';
 import { partesLocales, rangoDelDia, resumenDelDia } from '../js/reglas.js';
 
+// Llave pública VAPID ficticia (punto P-256 de 65 bytes, como la que genera la función avisos)
+const LLAVE_PUSH = generateKeyPairSync('ec', { namedCurve: 'prime256v1' }).publicKey.export({ format: 'jwk' });
+export const LLAVE_PUSH_PUBLICA = Buffer.concat([Buffer.from([4]), Buffer.from(LLAVE_PUSH.x, 'base64url'), Buffer.from(LLAVE_PUSH.y, 'base64url')]).toString('base64url');
 const FOTO_PRUEBA = readFileSync(new URL('./recursos/foto_prueba.jpg', import.meta.url));
 export const URL_SUPABASE = 'https://kkaaaaifzyjnafvmfdqe.supabase.co';
 
@@ -138,7 +142,7 @@ export async function simularSupabase(page, { sitiosPA = 782, sitiosDemo = 3, ev
   const miembrosSim = () => cuentas.flatMap((u) => u.miembros.map((m) => ({ ...m, user_id: u.id })));
   const horarios = horarioAsesor.map((h, i) => ({ id: `hhhhhhhh-0000-0000-0000-${String(i).padStart(12, '0')}`, organizacion_id: ORGS.pa.id,
     miembro_id: 'aaaaaaaa-0000-0000-0000-000000000001', ...h }));
-  const estado = { sinRed: false, recibidos: [], selfies: [], incidencias, revisiones, firmadas: [], cuentas, horarios, bitacora: [] };
+  const estado = { sinRed: false, recibidos: [], selfies: [], incidencias, revisiones, firmadas: [], cuentas, horarios, bitacora: [], suscripciones: [], pruebasAviso: 0 };
   const deToken = (req) => usuarioDeToken(req, cuentas);
   const orgDe = (clave) => ORGS[clave].id;
   const claveOrg = (id) => Object.keys(ORGS).find((k) => ORGS[k].id === id);
@@ -212,6 +216,31 @@ export async function simularSupabase(page, { sitiosPA = 782, sitiosDemo = 3, ev
         if (datos.data) u.metadata = { ...(u.metadata || {}), ...datos.data };
       }
       return json(route, 200, usuarioAuth(u));
+    }
+
+    // ----- Función avisos (HU-15b / HU-30): llave pública y aviso de prueba -----
+    if (url.pathname === '/functions/v1/avisos') {
+      if (req.method() === 'GET') return json(route, 200, url.searchParams.has('llave') ? { llave_publica: LLAVE_PUSH_PUBLICA } : { funcion: 'avisos', publicada: true });
+      const u = deToken(req);
+      if (!u) return json(route, 401, { error: 'Sesión no válida. Vuelve a iniciar sesión.' });
+      const suyas = estado.suscripciones.filter((x) => u.miembros.some((m) => m.id === x.miembro_id));
+      if (!suyas.length) return json(route, 409, { error: 'Este teléfono aún no está registrado para recibir avisos.' });
+      estado.pruebasAviso++;
+      return json(route, 200, { ok: suyas.length, fallidos: 0 });
+    }
+    // RPC de suscripciones (migración 0005): solo a nombre propio; el teléfono pasa a quien lo registra
+    if (url.pathname === '/rest/v1/rpc/registrar_suscripcion' || url.pathname === '/rest/v1/rpc/quitar_suscripcion') {
+      const u = deToken(req);
+      if (!u) return json(route, 401, { code: 'PGRST301', message: 'JWT expired' });
+      const d = req.postDataJSON() || {};
+      if (url.pathname.endsWith('quitar_suscripcion')) {
+        estado.suscripciones = estado.suscripciones.filter((x) => !(x.endpoint === d.p_endpoint && u.miembros.some((m) => m.id === x.miembro_id)));
+        return route.fulfill({ status: 204, headers: CORS });
+      }
+      if (!u.miembros.some((m) => m.id === d.p_miembro && m.activo)) return json(route, 400, { code: 'P0001', message: 'Solo puedes registrar avisos para ti' });
+      estado.suscripciones = estado.suscripciones.filter((x) => x.endpoint !== d.p_endpoint);
+      estado.suscripciones.push({ miembro_id: d.p_miembro, endpoint: d.p_endpoint, p256dh: d.p_p256dh, auth: d.p_auth });
+      return route.fulfill({ status: 204, headers: CORS });
     }
 
     // ----- Función alta-persona (HU-09): la misma lógica que corre en Supabase -----

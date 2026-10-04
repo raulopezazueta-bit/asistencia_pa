@@ -1,5 +1,5 @@
-// @ts-nocheck  (logica.js es JavaScript: no se revisan tipos)
-// ARCHIVO GENERADO: no editar. Es index.ts + logica.js en uno solo (ver armar_un_archivo.mjs).
+// @ts-nocheck  (los módulos incluidos son JavaScript: no se revisan tipos)
+// ARCHIVO GENERADO: no editar. Es alta-persona/index.ts con sus módulos incluidos (ver supabase/functions/armar_un_archivo.mjs).
 // Función de Supabase (Edge Function) "alta-persona" · HU-09.
 // Crea cuentas de acceso y da de baja o reactiva personas. Usa la llave secreta (service_role) que Supabase entrega
 // a la función como variable de entorno: NUNCA se escribe en este repositorio ni viaja al teléfono.

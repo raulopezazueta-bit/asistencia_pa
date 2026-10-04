@@ -492,3 +492,41 @@ export async function cambiarContrasena(nueva) {
   const { error } = await conLimite(cliente.auth.updateUser({ password: nueva, data: { debe_cambiar_contrasena: false } }), 15000);
   if (error) throw error;
 }
+
+// ---------- Avisos con la app cerrada (HU-15b / HU-30) ----------
+
+// Llave pública de Web Push que genera la función avisos (no es secreta: sirve para registrar el teléfono)
+export async function llavePublicaAvisos() {
+  if (navigator.onLine === false) throw errorSinSenal();
+  let r;
+  try { r = await conLimite(fetch(`${CONFIG.SUPABASE_URL}/functions/v1/avisos?llave=1`), 15000); }
+  catch (e) { if (esErrorDeRed(e)) throw e; throw new Error('No se pudo comunicar con la función avisos de Supabase.'); }
+  const cuerpo = await r.json().catch(() => ({}));
+  if (!r.ok || !cuerpo.llave_publica) throw new Error(cuerpo.error || `La función avisos respondió con un error (${r.status}).`);
+  return cuerpo.llave_publica;
+}
+
+export async function registrarSuscripcion(miembroId, sub) {
+  const { keys = {} } = sub.toJSON();
+  const { error } = await conLimite(cliente.rpc('registrar_suscripcion', {
+    p_miembro: miembroId, p_endpoint: sub.endpoint, p_p256dh: keys.p256dh, p_auth: keys.auth, p_user_agent: navigator.userAgent
+  }), 15000);
+  if (error) throw error;
+}
+
+export async function quitarSuscripcion(endpoint) {
+  const { error } = await conLimite(cliente.rpc('quitar_suscripcion', { p_endpoint: endpoint }), 8000);
+  if (error) throw error;
+}
+
+// Aviso de prueba a este teléfono (Perfil › Probar aviso)
+export async function probarAviso() {
+  if (navigator.onLine === false) throw errorSinSenal();
+  const { data, error } = await conLimite(cliente.functions.invoke('avisos', { body: { accion: 'probar' } }), 20000);
+  if (error) {
+    const cuerpo = await error.context?.json?.().catch(() => null);
+    if (cuerpo?.error) throw new Error(cuerpo.error);
+    throw new Error('No se pudo comunicar con la función avisos de Supabase.');
+  }
+  return data;
+}

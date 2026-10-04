@@ -127,6 +127,7 @@ async function aplicar(r) {
       pintarJornada();
       pintarSemana();
       pintarSolicitudes();
+      activarPush();
       if (location.hash === '#historial') pintarObservadas();
       estado.recienEntro = false;
       return;
@@ -193,6 +194,7 @@ function conectarFormularios() {
       const { porEnviar } = await cola.contarPendientes(misMiembros());
       if (porEnviar && !window.confirm(`Tienes ${porEnviar} ${porEnviar === 1 ? 'checada' : 'checadas'} sin enviar. Se quedarán guardadas en este teléfono y se enviarán cuando vuelvas a entrar con tu cuenta. ¿Cerrar sesión?`)) return;
     }
+    await recordatorio.quitarPush().catch(() => {});   // este teléfono deja de recibir avisos de esta cuenta
     await sesion.salir();
     estado.perfil = null;
     $('catalogo-buscar').value = '';
@@ -242,7 +244,17 @@ function conectarFormularios() {
   $('recordatorio-activar').addEventListener('click', async () => {
     await recordatorio.pedirPermiso();
     pintarRecordatorio();
-    if (recordatorio.permiso() === 'granted') pintarJornada();   // si ya hay un bloque olvidado, avisa de inmediato
+    if (recordatorio.permiso() === 'granted') { pintarJornada(); activarPush(); }   // si ya hay un bloque olvidado, avisa de inmediato
+  });
+  $('recordatorio-probar').addEventListener('click', async () => {
+    const b = $('recordatorio-probar');
+    b.disabled = true;
+    try {
+      const r = await api.probarAviso();
+      $('recordatorio-push').textContent = r.ok ? 'Aviso de prueba enviado: debe llegar en unos segundos, aunque cierres la app.' : 'No se pudo entregar el aviso de prueba a este teléfono.';
+    } catch (e) {
+      $('recordatorio-push').textContent = api.esErrorDeRed(e) ? 'Sin señal: intenta de nuevo con conexión.' : e.message;
+    } finally { b.disabled = false; }
   });
   $('perfil-solicitar').addEventListener('click', abrirCorreccion);
   $('boton-principal').addEventListener('click', () => {
@@ -810,6 +822,29 @@ function pintarRecordatorio() {
   };
   $('recordatorio-estado').textContent = textos[p];
   $('recordatorio-activar').hidden = p !== 'default';
+  pintarPush();
+}
+
+// Avisos con la app cerrada (HU-15b / HU-30): se registran solos cuando hay permiso
+let estadoPush = null;   // 'activo' | 'no_disponible' | 'error' | null
+async function activarPush() {
+  if (!estado.perfil || recordatorio.permiso() !== 'granted') return pintarPush();
+  try { estadoPush = await recordatorio.registrarPush(estado.perfil); }
+  catch (e) { estadoPush = api.esErrorDeRed(e) ? null : 'error'; console.warn('Avisos con la app cerrada', e); }
+  pintarPush();
+}
+function pintarPush() {
+  const p = recordatorio.permiso();
+  const t = $('recordatorio-push');
+  const coord = ['coordinador', 'admin'].includes(estado.perfil?.rol);
+  const textos = {
+    activo: `Con la app cerrada: activado en este teléfono${coord ? ' (también recibes las alertas de coordinación: sin checar y bloques sin cerrar)' : ''}.`,
+    no_disponible: 'Con la app cerrada: este navegador no lo permite (en iPhone, agrega la app a la pantalla de inicio).',
+    error: 'Con la app cerrada: todavía no está disponible (revisa que la función avisos esté publicada en Supabase).'
+  };
+  t.hidden = p !== 'granted' || !estadoPush;
+  t.textContent = textos[estadoPush] || '';
+  $('recordatorio-probar').hidden = estadoPush !== 'activo';
 }
 
 // ---------- Instalar en el teléfono (HU-35) ----------

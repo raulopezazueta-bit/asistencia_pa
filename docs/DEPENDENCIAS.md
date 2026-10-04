@@ -23,6 +23,13 @@ de estos archivos cambia sin actualizar su huella. Para verificar a mano: `sha25
 3. Regenerar huellas: `sha256sum vendor/supabase.js fonts/*.woff2 > vendor/HUELLAS.sha256`.
 4. Correr todas las pruebas, subir `CACHE_VERSION` y anotar el cambio en este archivo.
 
+## Código de terceros en las funciones de Supabase (corre en Supabase, no en el teléfono)
+
+| Función | Paquete | Versión | Licencia |
+|---|---|---|---|
+| `alta-persona`, `avisos` | `jsr:@supabase/supabase-js` | 2 | MIT |
+| `avisos` | `jsr:@negrel/webpush` (envío de Web Push con llaves VAPID) | 0.3.0 (fija) | MIT |
+
 ## Herramientas de desarrollo (nunca llegan al teléfono)
 
 | Paquete | Versión | Para qué |

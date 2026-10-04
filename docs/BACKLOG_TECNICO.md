@@ -70,8 +70,8 @@ app cerrada y el CSV separa horas ordinarias y extra. Plan y decisiones a valida
 | ☑ v24 | HU-09 | Alta de personas y horarios desde el panel | Admin crea cuenta, liga a la organización, asigna rol y horario, da de baja sin borrar; la llave secreta solo vive en Supabase |
 | ☑ v27 | HU-35 | Instalación con QR y guía de una página | QR que abre la app; guía para Android y iPhone (pantalla de inicio, permisos de ubicación, cámara y notificaciones) |
 | ☑ v28 | HU-32 | Horas ordinarias y extra por semana | CSV semanal por persona; jornada semanal y reglas de pago configurables. Regla del PO (oct-2026): 40 h de lunes a viernes; la actividad fuera de horario no se paga como extra, da medio día libre la semana siguiente (`jornada_semanal_horas`, `horas_medio_dia_libre`, `medio_dia_libre_por`) |
-| ☐ | HU-15b | Recordatorio con la app cerrada (Web Push) | Llega con la app cerrada (Android; iPhone con la app instalada); una vez por bloque y día |
-| ☐ | HU-30 | Alertas a coordinación | "Sin checar" y bloques sin cerrar, en el panel y por notificación; horarios configurables |
+| ☑ v29 | HU-15b | Recordatorio con la app cerrada (Web Push) | Llega con la app cerrada (Android; iPhone con la app instalada); una vez por bloque y día |
+| ☑ v29 | HU-30 | Alertas a coordinación | "Sin checar" y bloques sin cerrar, en el panel y por notificación; horarios configurables |
 
 ## Sprint 5 en adelante (referencia)
 

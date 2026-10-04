@@ -289,8 +289,8 @@ test('si la función alta-persona no responde (no publicada o bloqueada), el pan
 });
 
 test('la versión de un solo archivo de la función está al día con index.ts + logica.js', async () => {
-  const { armar } = await import('../supabase/functions/alta-persona/armar_un_archivo.mjs');
+  const { armar } = await import('../supabase/functions/armar_un_archivo.mjs');
   const { readFileSync } = await import('node:fs');
   const actual = readFileSync(new URL('../supabase/functions/alta-persona/index_un_archivo.ts', import.meta.url), 'utf8');
-  expect(actual, 'corre: node supabase/functions/alta-persona/armar_un_archivo.mjs').toBe(armar());
+  expect(actual, 'corre: node supabase/functions/armar_un_archivo.mjs').toBe(armar('alta-persona'));
 });

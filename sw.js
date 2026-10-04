@@ -31,8 +31,9 @@
 // asis-2026-10-04-v26 · HU-09 ajuste: la función alta-persona acepta las llaves nuevas de Supabase y tiene diagnóstico al abrir su dirección en el navegador.
 // asis-2026-10-04-v27 · HU-35 instalación: guía de una página con código QR (instalar.html, imprimible), botón "Instalar en este teléfono" en Perfil (Android) y enlaces a la guía.
 // asis-2026-10-04-v28 · HU-32 nómina semanal: CSV con horas ordinarias (40 h lunes a viernes), fuera de horario y medio día libre la semana siguiente; aviso del medio día libre en Historial.
+// asis-2026-10-04-v29 · HU-15b y HU-30 avisos con la app cerrada (Web Push): recordatorio de salida al asesor y alertas "sin checar" y "sin cerrar" a coordinación; registro del teléfono en Perfil y "Probar aviso".
 
-const CACHE_VERSION = 'asis-2026-10-04-v28';
+const CACHE_VERSION = 'asis-2026-10-04-v29';
 
 const CASCARON = [
   './',
@@ -125,11 +126,23 @@ self.addEventListener('fetch', (e) => {
 self.addEventListener('notificationclick', (e) => {
   e.notification.close();
   e.waitUntil((async () => {
+    const destino = new URL(e.notification.data?.url || './', self.registration.scope).href;
+    const alPanel = destino.includes('panel.html');
     const abiertas = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-    const app = abiertas.find((c) => new URL(c.url).pathname.endsWith('/') || c.url.includes('index.html'));
+    const app = abiertas.find((c) => (alPanel ? c.url.includes('panel.html') : !c.url.includes('panel.html')));
     if (app) { await app.focus(); return; }
-    await self.clients.openWindow(e.notification.data?.url || './');
+    await self.clients.openWindow(destino);
   })());
+});
+
+// ---------- Avisos con la app cerrada (HU-15b / HU-30): Web Push desde la función `avisos` ----------
+self.addEventListener('push', (e) => {
+  let d = {};
+  try { d = e.data ? e.data.json() : {}; } catch { d = { cuerpo: e.data?.text() }; }
+  e.waitUntil(self.registration.showNotification(d.titulo || 'Asistencia', {
+    body: d.cuerpo || '', tag: d.tag || 'aviso', icon: 'assets/icon-192.png', badge: 'assets/favicon-32.png', lang: 'es-MX',
+    data: { url: d.url || './' }
+  }));
 });
 
 // ---------- Background Sync (HU-22): enviar pendientes con la app cerrada (Chrome/Android) ----------

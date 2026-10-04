@@ -21,5 +21,7 @@ R0003=$($P -d t -v ON_ERROR_STOP=1 -f "$(dirname "$0")/pruebas_0003.sql" 2>&1 ||
 echo "$R0003" | grep -q "PRUEBAS 0003: OK" && echo "PRUEBAS 0003: OK" || { echo "$R0003" | grep -E "ERROR|assert" ; echo "PRUEBAS 0003: FALLA"; su postgres -c "$PGBIN/pg_ctl -D $DIR stop >/dev/null"; exit 1; }
 R0004=$($P -d t -v ON_ERROR_STOP=1 -f "$(dirname "$0")/pruebas_0004.sql" 2>&1 || true)
 echo "$R0004" | grep -q "PRUEBAS 0004: OK" && echo "PRUEBAS 0004: OK" || { echo "$R0004" | grep -E "ERROR|assert" ; echo "PRUEBAS 0004: FALLA"; su postgres -c "$PGBIN/pg_ctl -D $DIR stop >/dev/null"; exit 1; }
+R0005=$($P -d t -v ON_ERROR_STOP=1 -f "$(dirname "$0")/pruebas_0005.sql" 2>&1 || true)
+echo "$R0005" | grep -q "PRUEBAS 0005: OK" && echo "PRUEBAS 0005: OK" || { echo "$R0005" | grep -E "ERROR|assert" ; echo "PRUEBAS 0005: FALLA"; su postgres -c "$PGBIN/pg_ctl -D $DIR stop >/dev/null"; exit 1; }
 su postgres -c "$PGBIN/pg_ctl -D $DIR stop >/dev/null"
 [ "$ERR" = "5" ] && echo "PRUEBAS SQL: OK" || { echo "PRUEBAS SQL: REVISAR"; exit 1; }
