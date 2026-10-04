@@ -108,3 +108,32 @@ test('contra la API local (RLS real): coordinación de PA ve a su gente y nada d
   await expect(page.locator('#tabla-hoy-cuerpo')).not.toContainText('Demo');
   await expect(page.locator('#kpi-total')).toHaveText(' / 1');
 });
+
+test('panel en el celular (375 px): sin desbordes, menú fijo con pendientes y acceso directo desde Inicio', async ({ page }) => {
+  await page.clock.setFixedTime(new Date(`${DIA}T17:30:00-07:00`));
+  await simularSupabase(page, { sitiosPA: 20, incidencias: [inc('otro')], eventos: [
+    ev('inicio_bloque', `${DIA}T16:00`, { bloque: 'campo', estado_revision: 'revisar', motivos_revision: ['sin_ubicacion'] })
+  ] });
+  await page.goto('index.html');
+  await entrar(page, USUARIOS.coordinador);
+  await expect(page.locator('#pantalla-app')).toBeVisible();
+  await page.locator('#inicio-panel').click();
+  await expect(page).toHaveURL(/panel\.html$/);
+  await expect(page.locator('#menu-revisar')).toHaveText('1');
+  await expect(page.locator('#menu-incidencias')).toHaveText('1');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(375);
+  await page.locator('.panel__menu a', { hasText: 'Incidencias' }).click();
+  await expect(page.locator('#incidencias-titulo')).toBeInViewport();
+  await expect(page.locator('.panel__menu')).toBeInViewport();   // el menú sigue a la vista al bajar
+  await page.locator('.panel__menu a', { hasText: 'Reportes' }).click();
+  await expect(page.locator('#reporte-ver')).toBeInViewport();
+});
+
+test('una persona asesora no ve el acceso al panel en Inicio', async ({ page }) => {
+  await page.clock.setFixedTime(new Date(`${DIA}T10:00:00-07:00`));
+  await simularSupabase(page, { sitiosPA: 20 });
+  await page.goto('index.html');
+  await entrar(page, USUARIOS.asesor);
+  await expect(page.locator('#pantalla-app')).toBeVisible();
+  await expect(page.locator('#inicio-panel')).toBeHidden();
+});

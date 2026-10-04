@@ -25,8 +25,9 @@
 // asis-2026-10-04-v20 · HU-31 reportes: página para la autoridad (imprimir o guardar PDF) por periodo y persona, y CSV para nómina desde el panel.
 // asis-2026-10-04-v21 · HU-16 mi registro: la persona consulta su historial por periodo, lo imprime o guarda en PDF, lo descarga en CSV y ve sus checadas observadas.
 // asis-2026-10-04-v22 · HU-15 recordatorio de salida: notificación del teléfono (app abierta o en segundo plano) si un bloque sigue abierto tras su fin + recordatorio_salida_min; una vez por bloque y día.
+// asis-2026-10-04-v23 · T-02 (parte 1) panel cómodo en el celular: menú fijo de secciones con pendientes, incidencias antes de reportes y acceso al panel desde Inicio.
 
-const CACHE_VERSION = 'asis-2026-10-04-v22';
+const CACHE_VERSION = 'asis-2026-10-04-v23';
 
 const CASCARON = [
   './',

@@ -345,3 +345,16 @@ textarea.campo__entrada { resize: vertical; min-height: 88px; }
 .mi-registro .campo__fila > .campo { flex: 1 1 140px; min-width: 0; }
 .mi-registro input[type="date"] { width: 100%; min-width: 0; }
 .recordatorio__boton { margin-top: 10px; }
+
+/* Menú de secciones del panel: fijo arriba, útil sobre todo en el celular */
+.panel__menu { position: sticky; top: 0; z-index: 5; display: flex; gap: 4px; overflow-x: auto; padding: 8px 16px; background: var(--hueso); border-bottom: 1px solid var(--linea); }
+.panel__menu a { flex: 1 0 auto; display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: var(--tactil); padding: 0 12px; border-radius: var(--radio-chico); color: var(--verde); font-weight: 600; font-size: 15px; text-decoration: none; }
+.panel__menu a:hover, .panel__menu a:focus-visible { background: rgb(20 80 58 / 8%); }
+.panel__cuenta:not(:empty) { min-width: 22px; padding: 1px 7px; border-radius: 999px; background: var(--critico-fondo); color: var(--critico-texto); font-size: 13px; font-family: var(--mono); text-align: center; }
+.panel__seccion { scroll-margin-top: 72px; }
+html:has(.app--panel) { scroll-behavior: smooth; }
+@media (max-width: 479px) {
+  .panel__menu { gap: 0; padding: 6px 8px; }
+  .panel__menu a { flex: 1 1 auto; padding: 0 6px; gap: 4px; font-size: 14px; }
+  .panel__cuenta:not(:empty) { min-width: 20px; padding: 1px 5px; }
+}

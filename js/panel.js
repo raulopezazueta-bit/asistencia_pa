@@ -166,6 +166,7 @@ async function pintarBandeja() {
     const nombreSitio = new Map(catalogo.map((x) => [x.id, x.nombre]));
     const b = armarBandeja({ eventos, revisiones, incidencias });
     $('contador-revisar').textContent = `(${b.porRevisar.length})`;
+    $('menu-revisar').textContent = b.porRevisar.length || '';
     const lista = estado.bandeja === 'pendientes' ? b.porRevisar : b.revisadas;
     $('bandeja-lista').replaceChildren(...lista.map((item) => tarjetaRevision(item, nombreSitio)));
     $('bandeja-vacio').textContent = estado.bandeja === 'pendientes' ? 'No hay checadas por revisar.' : 'No hay checadas revisadas en los últimos 30 días.';
@@ -366,6 +367,7 @@ async function pintar() {
     const pendientes = await api.incidenciasDeOrganizacion(org, { estado: 'pendiente' });
     $('contador-pendientes').textContent = `(${pendientes.length})`;
     $('kpi-incidencias').textContent = pendientes.length;
+    $('menu-incidencias').textContent = pendientes.length || '';
     const filas = estado.filtro === 'pendiente' ? pendientes
       : await api.incidenciasDeOrganizacion(org, { desdeISO: new Date(Date.now() - 30 * 864e5).toISOString() });
     lista.replaceChildren(...filas.map(tarjeta));

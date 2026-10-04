@@ -57,7 +57,21 @@ HU-15 pasa al Sprint 4.
 | ☑ v21 | HU-16 | Mi registro | El asesor consulta y descarga su historial (CSV y PDF) |
 | ☑ v22 | HU-15 | Recordatorio de salida | Notificación local si el bloque sigue abierto 30 min después del fin programado |
 
-## Sprint 4 en adelante (referencia)
+## Sprint 4 · Listo para el piloto
+
+**Objetivo:** coordinación da de alta a sus asesores sin ayuda técnica, la app se instala con QR, los avisos llegan con la
+app cerrada y el CSV separa horas ordinarias y extra. Plan y decisiones a validar: documento de la Sprint Review 3 (fuera del repo).
+
+| Estado | ID | Historia | Criterios de aceptación |
+|---|---|---|---|
+| ◐ v23 | T-02 | Ajustes de la Review y prueba en Supabase real | Hecho (v23): panel cómodo en el celular (menú fijo con pendientes, incidencias antes de reportes, acceso desde Inicio). Falta: decisiones marcadas "Cambiar" y el guion de la demo en Android e iPhone reales |
+| ☐ | HU-09 | Alta de personas y horarios desde el panel | Admin crea cuenta, liga a la organización, asigna rol y horario, da de baja sin borrar; la llave secreta solo vive en Supabase |
+| ☐ | HU-35 | Instalación con QR y guía de una página | QR que abre la app; guía para Android y iPhone (pantalla de inicio, permisos de ubicación, cámara y notificaciones) |
+| ☐ | HU-32 | Horas ordinarias y extra por semana | CSV semanal por persona; jornada semanal y reglas de pago configurables |
+| ☐ | HU-15b | Recordatorio con la app cerrada (Web Push) | Llega con la app cerrada (Android; iPhone con la app instalada); una vez por bloque y día |
+| ☐ | HU-30 | Alertas a coordinación | "Sin checar" y bloques sin cerrar, en el panel y por notificación; horarios configurables |
+
+## Sprint 5 en adelante (referencia)
 
 HU-25 mapa de visitas (Leaflet, solo panel) · HU-30 alertas · HU-32 horas ordinarias/extras para nómina · HU-34 respaldos y conservación ·
 HU-35 instalación con QR + guía de 1 página · HU-36 piloto con 5 asesores · HU-11 marca por organización · HU-38 manual de réplica para otras IAP.

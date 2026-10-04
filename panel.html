@@ -36,11 +36,18 @@
         <a class="boton boton--chico" href="index.html">Ir a la app</a>
       </header>
 
+      <nav class="panel__menu" aria-label="Secciones del panel">
+        <a href="#seccion-hoy">Hoy</a>
+        <a href="#seccion-revision">Revisión <span class="panel__cuenta" id="menu-revisar"></span></a>
+        <a href="#seccion-incidencias">Incidencias <span class="panel__cuenta" id="menu-incidencias"></span></a>
+        <a href="#seccion-reportes">Reportes</a>
+      </nav>
+
       <main class="contenido">
         <div class="aviso" id="panel-aviso" role="status" hidden></div>
 
         <!-- Tablero del día (HU-27) -->
-        <section class="vista" aria-labelledby="hoy-titulo">
+        <section class="vista panel__seccion" id="seccion-hoy" aria-labelledby="hoy-titulo">
           <div class="panel__cabecera">
             <h2 class="panel__titulo" id="hoy-titulo">Hoy · <span id="hoy-fecha"></span></h2>
             <div class="panel__filtros">
@@ -51,7 +58,7 @@
           <div class="kpis">
             <article class="tarjeta kpi"><p class="kpi__etiqueta">En jornada ahora</p><p class="kpi__valor"><span id="kpi-en-jornada">—</span><span class="kpi__de" id="kpi-total"></span></p><p class="kpi__detalle">con un bloque abierto (incluye pausa)</p></article>
             <article class="tarjeta kpi"><p class="kpi__etiqueta">Checadas dentro de zona</p><p class="kpi__valor" id="kpi-zona">—</p><p class="kpi__detalle" id="kpi-zona-detalle">esta semana</p></article>
-            <article class="tarjeta kpi"><p class="kpi__etiqueta">Incidencias por resolver</p><p class="kpi__valor" id="kpi-incidencias">—</p><p class="kpi__detalle"><a href="#incidencias-titulo">Ver abajo</a></p></article>
+            <article class="tarjeta kpi"><p class="kpi__etiqueta">Incidencias por resolver</p><p class="kpi__valor" id="kpi-incidencias">—</p><p class="kpi__detalle"><a href="#seccion-incidencias">Ver incidencias</a></p></article>
             <article class="tarjeta kpi"><p class="kpi__etiqueta">Parques visitados hoy</p><p class="kpi__valor" id="kpi-parques">—</p><p class="kpi__detalle">distintos, por llegada o checada en el parque</p></article>
           </div>
           <article class="tarjeta">
@@ -67,7 +74,7 @@
         </section>
 
         <!-- Bandeja de revisión (HU-23) -->
-        <section class="vista" aria-labelledby="bandeja-titulo">
+        <section class="vista panel__seccion" id="seccion-revision" aria-labelledby="bandeja-titulo">
           <div class="panel__cabecera">
             <h2 class="panel__titulo" id="bandeja-titulo">Bandeja de revisión</h2>
             <div class="panel__filtros" role="tablist" aria-label="Filtrar checadas">
@@ -80,8 +87,21 @@
           <p class="secundario" id="bandeja-vacio" hidden></p>
         </section>
 
+        <!-- Incidencias (HU-29) -->
+        <section class="vista panel__seccion" id="seccion-incidencias" aria-labelledby="incidencias-titulo">
+          <div class="panel__cabecera">
+            <h2 class="panel__titulo" id="incidencias-titulo">Incidencias</h2>
+            <div class="panel__filtros" role="tablist" aria-label="Filtrar incidencias">
+              <button class="boton boton--chico" type="button" role="tab" id="filtro-pendientes" aria-selected="true">Por resolver <span id="contador-pendientes" class="mono"></span></button>
+              <button class="boton boton--chico" type="button" role="tab" id="filtro-resueltas" aria-selected="false">Resueltas (30 días)</button>
+            </div>
+          </div>
+          <p class="secundario chico">Aprobar agrega la checada corregida (nada se borra). Rechazar exige explicar el motivo a la persona. Nadie puede resolver sus propias solicitudes.</p>
+          <div class="panel__lista" id="incidencias-lista" aria-live="polite"></div>
+          <p class="secundario" id="incidencias-vacio" hidden></p>
+        </section>
         <!-- Reportes (HU-31) -->
-        <section class="vista" aria-labelledby="reportes-titulo">
+        <section class="vista panel__seccion" id="seccion-reportes" aria-labelledby="reportes-titulo">
           <h2 class="panel__titulo" id="reportes-titulo">Reportes</h2>
           <form class="tarjeta reportes" id="form-reporte" novalidate>
             <label class="campo"><span class="campo__etiqueta">Desde</span><input class="campo__entrada mono" type="date" id="reporte-desde" required></label>
@@ -98,19 +118,6 @@
           <p class="secundario chico">El reporte usa la vista oficial de horas (la misma del servidor) y señala revisiones, incidencias, bloques sin cerrar y días fuera de horario. El CSV trae una fila por persona y día; las horas extra por semana llegan en el Sprint 4.</p>
         </section>
 
-        <!-- Incidencias (HU-29) -->
-        <section class="vista" aria-labelledby="incidencias-titulo">
-          <div class="panel__cabecera">
-            <h2 class="panel__titulo" id="incidencias-titulo">Incidencias</h2>
-            <div class="panel__filtros" role="tablist" aria-label="Filtrar incidencias">
-              <button class="boton boton--chico" type="button" role="tab" id="filtro-pendientes" aria-selected="true">Por resolver <span id="contador-pendientes" class="mono"></span></button>
-              <button class="boton boton--chico" type="button" role="tab" id="filtro-resueltas" aria-selected="false">Resueltas (30 días)</button>
-            </div>
-          </div>
-          <p class="secundario chico">Aprobar agrega la checada corregida (nada se borra). Rechazar exige explicar el motivo a la persona. Nadie puede resolver sus propias solicitudes.</p>
-          <div class="panel__lista" id="incidencias-lista" aria-live="polite"></div>
-          <p class="secundario" id="incidencias-vacio" hidden></p>
-        </section>
       </main>
     </div>
   </div>

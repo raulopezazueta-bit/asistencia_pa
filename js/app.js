@@ -66,6 +66,7 @@ function pintarPerfil(correo) {
   $('perfil-correo').textContent = correo || '—';
   $('perfil-cambiar-org').hidden = estado.membresias.length < 2;
   $('perfil-panel').hidden = !['coordinador', 'admin'].includes(p.rol);
+  $('inicio-panel').hidden = $('perfil-panel').hidden;
   pintarRecordatorio();
   $('aviso-sin-conexion').hidden = !estado.sinConexion;
   pintarFecha();
