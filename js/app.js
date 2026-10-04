@@ -10,6 +10,9 @@ import * as reloj from './reloj.js';
 import * as horas from './horas.js';
 import * as correccion from './correccion.js';
 import * as incidencias from './incidencias.js';
+import { cargarMiRegistro } from './reporte_datos.js';
+import { csvNomina } from './reporte.js';
+import * as api from './api.js';
 import { calcularEstado, resumenDelDia, formatoHoras, recorridoDelDia } from './reglas.js';
 
 const VISTAS = ['inicio', 'visitas', 'historial', 'perfil'];
@@ -118,6 +121,7 @@ async function aplicar(r) {
       pintarJornada();
       pintarSemana();
       pintarSolicitudes();
+      if (location.hash === '#historial') pintarObservadas();
       estado.recienEntro = false;
       return;
   }
@@ -184,6 +188,7 @@ function conectarFormularios() {
   });
   $('catalogo-actualizar').addEventListener('click', () => sincronizarSitios({ forzar: true }));
   $('historial-solicitar').addEventListener('click', abrirCorreccion);
+  conectarMiRegistro();
   $('perfil-solicitar').addEventListener('click', abrirCorreccion);
   $('boton-principal').addEventListener('click', () => {
     const b = $('boton-principal');
@@ -308,6 +313,90 @@ async function pintarSolicitudes() {
     $('solicitudes-nota').hidden = !nota;
   })().finally(() => { pintandoSolicitudes = null; });
   return pintandoSolicitudes;
+}
+
+// ---------- Mi registro (HU-16) ----------
+function periodoMiRegistro() {
+  const desde = $('mi-registro-desde').value, hasta = $('mi-registro-hasta').value;
+  if (!desde || !hasta) return { error: 'Elige las dos fechas del periodo.' };
+  if (desde > hasta) return { error: 'La fecha "Desde" debe ser anterior o igual a "Hasta".' };
+  return { desde, hasta };
+}
+
+function conectarMiRegistro() {
+  const err = $('mi-registro-error');
+  const mostrar = (t) => { err.textContent = t || ''; err.hidden = !t; };
+  $('form-mi-registro').addEventListener('submit', (ev) => {
+    ev.preventDefault();
+    const p = periodoMiRegistro();
+    if (p.error) return mostrar(p.error);
+    if (navigator.onLine === false) return mostrar('Sin señal: para consultar tu registro necesitas conexión.');
+    mostrar('');
+    location.href = `reporte.html?${new URLSearchParams({ desde: p.desde, hasta: p.hasta, mio: '1' })}`;
+  });
+  $('mi-registro-csv').addEventListener('click', async () => {
+    const p = periodoMiRegistro();
+    if (p.error) return mostrar(p.error);
+    mostrar('');
+    const boton = $('mi-registro-csv');
+    boton.disabled = true;
+    try {
+      const { persona } = await cargarMiRegistro(estado.perfil, p.desde, p.hasta);
+      const blob = new Blob([csvNomina([persona], estado.perfil.organizacion.nombre)], { type: 'text/csv;charset=utf-8' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `mi_registro_${p.desde}_${p.hasta}.csv`;
+      document.body.append(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 10_000);
+    } catch (e) {
+      mostrar(api.esErrorDeRed(e) ? 'Sin señal: para descargar tu registro necesitas conexión.' : `No se pudo preparar el archivo: ${e.message}`);
+    } finally {
+      boton.disabled = false;
+    }
+  });
+}
+
+// Periodo por omisión (del día 1 del mes a hoy) y checadas observadas de los últimos 30 días
+let pintandoObservadas = null;
+async function pintarObservadas() {
+  if (!estado.perfil) return;
+  const hoy = new Intl.DateTimeFormat('en-CA', { timeZone: zonaHoraria() }).format(new Date());
+  if (!$('mi-registro-hasta').value) { $('mi-registro-desde').value = `${hoy.slice(0, 8)}01`; $('mi-registro-hasta').value = hoy; }
+  if (pintandoObservadas) return pintandoObservadas;
+  pintandoObservadas = (async () => {
+    const perfil = estado.perfil;
+    const d = new Date(`${hoy}T12:00:00Z`);
+    d.setUTCDate(d.getUTCDate() - 30);
+    try {
+      const { observadas } = await cargarMiRegistro(perfil, d.toISOString().slice(0, 10), hoy);
+      if (estado.perfil !== perfil) return;
+      $('observadas-lista').replaceChildren(...observadas.map(({ evento: e, revision }) => {
+        const li = document.createElement('li');
+        li.className = 'lista__fila';
+        li.dataset.evento = e.id;
+        const izq = document.createElement('div');
+        const t = document.createElement('p');
+        t.className = 'lista__titulo';
+        t.textContent = incidencias.nombreChecada(e.tipo, e.bloque);
+        const det = document.createElement('p');
+        det.className = 'lista__detalle';
+        det.textContent = fechaHoraCorta(e.hora_efectiva);
+        const c = document.createElement('p');
+        c.className = 'solicitud__comentario';
+        c.textContent = `Coordinación: ${revision.comentario || 'observada'}`;
+        izq.append(t, det, c);
+        const chip = document.createElement('span');
+        chip.className = 'chip chip--aviso';
+        chip.textContent = 'Observada';
+        li.append(izq, chip);
+        return li;
+      }));
+      $('observadas').hidden = !observadas.length;
+    } catch { /* sin señal: no se muestran */ }
+  })().finally(() => { pintandoObservadas = null; });
+  return pintandoObservadas;
 }
 
 const misMiembros = () => estado.membresias.map((m) => m.miembroId);
@@ -646,7 +735,7 @@ function iniciar() {
   $('version-app').textContent = CONFIG.VERSION_APP;
   pintarFecha();
   mostrarVista();
-  window.addEventListener('hashchange', () => { mostrarVista(); if (location.hash === '#historial') { pintarSemana(); pintarSolicitudes(); } });
+  window.addEventListener('hashchange', () => { mostrarVista(); if (location.hash === '#historial') { pintarSemana(); pintarSolicitudes(); pintarObservadas(); } });
   conectarFormularios();
   registrarServiceWorker().catch((e) => console.warn('Service worker no registrado', e));
   revisarSesion();

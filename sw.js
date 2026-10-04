@@ -23,8 +23,9 @@
 // asis-2026-10-04-v18 · HU-27 panel de coordinación: tarjetas del día (en jornada, % dentro de zona, incidencias, parques) y tabla por persona.
 // asis-2026-10-04-v19 · HU-23 bandeja de revisión: checadas marcadas con motivos, lugar y selfie (enlace de 60 s); coordinación valida u observa (requiere migración 0004).
 // asis-2026-10-04-v20 · HU-31 reportes: página para la autoridad (imprimir o guardar PDF) por periodo y persona, y CSV para nómina desde el panel.
+// asis-2026-10-04-v21 · HU-16 mi registro: la persona consulta su historial por periodo, lo imprime o guarda en PDF, lo descarga en CSV y ve sus checadas observadas.
 
-const CACHE_VERSION = 'asis-2026-10-04-v20';
+const CACHE_VERSION = 'asis-2026-10-04-v21';
 
 const CASCARON = [
   './',

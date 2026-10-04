@@ -54,7 +54,7 @@ HU-15 pasa al Sprint 4.
 | ☑ v17 | HU-28/29 | Incidencias | Asesor solicita con motivo (≥ 5 caracteres); coordinación aprueba/rechaza; el evento corregido aparece con `origen = 'incidencia'` |
 | ☑ v19 | HU-23 | Bandeja de revisión | Lista de eventos `revisar` con motivos y selfie (URL firmada) |
 | ☑ v20 | HU-31 | Reporte para autoridad | PDF por periodo y persona: datos de la organización, persona, cada día con inicio, fin, bloques, pausas, minutos efectivos y marcas de revisión/incidencia |
-| ☐ | HU-16 | Mi registro | El asesor consulta y descarga su historial (CSV y PDF) |
+| ☑ v21 | HU-16 | Mi registro | El asesor consulta y descarga su historial (CSV y PDF) |
 | ☐ | HU-15 | Recordatorio de salida | Notificación local si el bloque sigue abierto 30 min después del fin programado |
 
 ## Sprint 4 en adelante (referencia)

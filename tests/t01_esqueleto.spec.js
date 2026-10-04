@@ -20,6 +20,8 @@ test('carga a 375×812 sin desbordes y con las 4 pestañas', async ({ page }) =>
     await expect(page.locator('#titulo-vista')).toHaveText(titulo);
     await expect(page.locator(`#vista-${pestana}`)).toBeVisible();
     await expect(page.locator(`[data-pestana="${pestana}"]`)).toHaveAttribute('aria-current', 'page');
+    // Ninguna pestaña puede ser más ancha que el teléfono (si lo es, la barra de abajo queda fuera de la pantalla)
+    expect(await page.evaluate(() => document.documentElement.scrollWidth), pestana).toBeLessThanOrEqual(375);
   }
 });
 

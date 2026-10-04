@@ -337,3 +337,10 @@ textarea.campo__entrada { resize: vertical; min-height: 88px; }
 .reportes__botones { display: flex; flex-wrap: wrap; gap: 8px; }
 .reportes__botones > * { flex: 1 1 240px; }
 @media (max-width: 479px) { .reportes__persona { grid-column: 1 / -1; } }
+
+/* Mi registro (HU-16) */
+.mi-registro { gap: 10px; margin-top: 8px; }
+.observadas__titulo { margin-top: 16px; }
+.mi-registro .campo__fila { flex-wrap: wrap; }
+.mi-registro .campo__fila > .campo { flex: 1 1 140px; min-width: 0; }
+.mi-registro input[type="date"] { width: 100%; min-width: 0; }

@@ -412,7 +412,10 @@ export async function simularSupabase(page, { sitiosPA = 782, sitiosDemo = 3, ev
       const orgsCoord = u.miembros.filter((m) => m.activo && m.rol !== 'asesor').map((m) => ORGS[m.org].id);
       if (req.method() === 'GET') {
         const org = url.searchParams.get('organizacion_id')?.slice(3);
-        const filas = revisiones.filter((r) => orgsCoord.includes(r.organizacion_id) && (!org || r.organizacion_id === org))
+        const mios = u.miembros.map((m) => m.id);
+        const propias = (r) => mios.includes(eventos.find((e) => e.id === r.evento_id)?.miembro_id);
+        const ids = /^in\.\((.*)\)$/.exec(url.searchParams.get('evento_id') || '')?.[1].split(',');
+        const filas = revisiones.filter((r) => (orgsCoord.includes(r.organizacion_id) || propias(r)) && (!org || r.organizacion_id === org) && (!ids || ids.includes(r.evento_id)))
           .map((r) => ({ ...r, revisor: { nombre_completo: MIEMBROS.find((m) => m.id === r.revisado_por)?.nombre_completo } }));
         return json(route, 200, filas);
       }

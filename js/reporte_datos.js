@@ -18,3 +18,23 @@ export async function cargarReporte(perfil, desde, hasta, miembro = '') {
     // Con "todas las personas" se omite a quien no tiene registros ni es asesor (p. ej. administración)
     .filter((x) => miembro || x.dias.length || x.miembro.rol === 'asesor');
 }
+
+// Mi registro (HU-16): lo mismo, solo de la persona que consulta (cualquier rol; RLS limita a sus propios datos).
+export async function cargarMiRegistro(perfil, desde, hasta) {
+  const zona = perfil.organizacion.zonaHoraria;
+  const inicio = rangoDelDia(new Date(`${desde}T12:00:00Z`), zona).desde;
+  const fin = rangoDelDia(new Date(`${hasta}T12:00:00Z`), zona).hasta;
+  const [horarios, dias, eventos, solicitudes] = await Promise.all([
+    api.misHorarios(perfil.miembroId), api.miJornadaDetalle(perfil.miembroId, desde, hasta),
+    api.misEventos(perfil.miembroId, inicio.toISOString(), fin.toISOString()), api.misIncidencias(perfil.miembroId)
+  ]);
+  const corregidas = new Set(solicitudes.filter((i) => i.estado === 'aprobada' && i.tipo === 'correccion_hora').map((i) => i.evento_original_id));
+  const vigentes = eventos.filter((e) => !corregidas.has(e.id)).map((e) => ({ ...e, miembro_id: perfil.miembroId }));
+  const revisiones = await api.revisionesDeMisChecadas(vigentes.filter((e) => e.estado_revision === 'revisar').map((e) => e.id));
+  const miembro = { id: perfil.miembroId, nombre_completo: perfil.nombre, num_empleado: perfil.numEmpleado, rol: perfil.rol };
+  const [persona] = armarReporte({ miembros: [miembro], dias, eventos: vigentes, revisiones,
+    horarios: horarios.map((h) => ({ ...h, miembro_id: perfil.miembroId })), zona });
+  const observadas = vigentes.filter((e) => revisiones.some((r) => r.evento_id === e.id && r.decision === 'observada'))
+    .map((e) => ({ evento: e, revision: revisiones.find((r) => r.evento_id === e.id) }));
+  return { persona, observadas };
+}

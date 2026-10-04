@@ -281,7 +281,24 @@
           <p class="secundario chico" id="solicitudes-nota"></p>
           <button class="boton boton--ancho" type="button" id="historial-solicitar" data-accion="solicitar_correccion">Solicitar corrección</button>
         </article>
-        <article class="tarjeta"><p class="secundario">La descarga de tu registro (CSV y PDF) llega en el siguiente sprint.</p></article>
+        <article class="tarjeta" aria-labelledby="mi-registro-titulo">
+          <p class="tarjeta__etiqueta" id="mi-registro-titulo">Mi registro</p>
+          <p class="secundario chico">Tienes derecho a conocer tu registro de jornada. Consúltalo por periodo, imprímelo o guárdalo en PDF, o descárgalo en CSV (se abre en Excel).</p>
+          <form class="formulario mi-registro" id="form-mi-registro" novalidate>
+            <div class="campo__fila">
+              <label class="campo"><span class="campo__etiqueta">Desde</span><input class="campo__entrada mono" type="date" id="mi-registro-desde"></label>
+              <label class="campo"><span class="campo__etiqueta">Hasta</span><input class="campo__entrada mono" type="date" id="mi-registro-hasta"></label>
+            </div>
+            <button class="boton boton--lleno boton--ancho" type="submit" id="mi-registro-ver">Ver mi registro (imprimir o PDF)</button>
+            <button class="boton boton--ancho" type="button" id="mi-registro-csv">Descargar CSV</button>
+            <p class="aviso aviso--critico" id="mi-registro-error" role="alert" hidden></p>
+          </form>
+          <div id="observadas" hidden>
+            <p class="lista__titulo observadas__titulo">Checadas observadas por coordinación (últimos 30 días)</p>
+            <ul class="lista" id="observadas-lista"></ul>
+            <p class="secundario chico">Si no estás de acuerdo o hay que corregir algo, solicita una corrección.</p>
+          </div>
+        </article>
       </section>
 
       <!-- Perfil -->

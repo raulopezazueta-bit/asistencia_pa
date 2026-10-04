@@ -1,9 +1,10 @@
 // Página del reporte para la autoridad (reporte.html?desde=AAAA-MM-DD&hasta=AAAA-MM-DD[&miembro=id]). Solo coordinación.
+// Con &mio=1 es "Mi registro" (HU-16): cualquier persona consulta y descarga el suyo.
 // Se imprime o se guarda como PDF desde el navegador (sin dependencias nuevas).
 import * as sesion from './sesion.js';
 import * as api from './api.js';
 import { horasMinutos } from './reporte.js';
-import { cargarReporte } from './reporte_datos.js';
+import { cargarReporte, cargarMiRegistro } from './reporte_datos.js';
 
 const $ = (id) => document.getElementById(id);
 const ROLES = { asesor: 'Asesoría', coordinador: 'Coordinación', admin: 'Administración' };
@@ -20,15 +21,20 @@ function error(texto) {
 async function iniciar() {
   const q = new URLSearchParams(location.search);
   const desde = q.get('desde'), hasta = q.get('hasta'), miembro = q.get('miembro') || '';
+  const mio = q.get('mio') === '1';
+  if (mio) {
+    document.querySelector('.reporte__barra a').href = 'index.html#historial';
+    document.querySelector('.reporte__barra a').textContent = 'Volver a la app';
+  }
   if (!FECHA.test(desde || '') || !FECHA.test(hasta || '') || desde > hasta) return error('Periodo inválido. Vuelve al panel y elige las fechas.');
   let r;
   try { r = await sesion.resolver(); } catch { return error('No se pudo verificar tu cuenta. Revisa tu señal y recarga la página.'); }
   if (r.estado !== 'lista') return error('Inicia sesión en la app con tu cuenta de coordinación y vuelve a abrir el reporte.');
-  if (!['coordinador', 'admin'].includes(r.perfil.rol)) return error('El reporte de la organización es solo para coordinación.');
+  if (!mio && !['coordinador', 'admin'].includes(r.perfil.rol)) return error('El reporte de la organización es solo para coordinación.');
   const p = r.perfil;
   const zona = p.organizacion.zonaHoraria;
   try {
-    const personas = await cargarReporte(p, desde, hasta, miembro);
+    const personas = mio ? [(await cargarMiRegistro(p, desde, hasta)).persona] : await cargarReporte(p, desde, hasta, miembro);
     if (miembro && !personas.length) return error('La persona elegida no está activa en esta organización.');
     pintar({ perfil: p, personas, desde, hasta, zona });
   } catch (e) {
@@ -46,6 +52,7 @@ function td(contenido, clase) {
 function pintar({ perfil, personas, desde, hasta, zona }) {
   const cfg = perfil.organizacion.config || {};
   document.title = `Registro de jornada · ${perfil.organizacion.nombre} · ${desde} a ${hasta}`;
+  if (new URLSearchParams(location.search).get('mio') === '1') document.title = `Mi registro de jornada · ${desde} a ${hasta}`;
   $('reporte-org').textContent = cfg.razon_social || perfil.organizacion.nombre;
   // Datos del patrón: configurables en organizaciones.config (pendientes de Parques Alegres)
   $('reporte-org-datos').textContent = [cfg.razon_social ? perfil.organizacion.nombre : null, cfg.rfc && `RFC ${cfg.rfc}`,

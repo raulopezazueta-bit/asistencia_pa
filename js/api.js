@@ -395,3 +395,35 @@ export async function jornadaDeOrganizacion(organizacionId, desdeFecha, hastaFec
   }
   return filas;
 }
+
+// ---------- Mi registro (HU-16) ----------
+
+// Días oficiales de la persona con el detalle de bloques (misma vista que el reporte para la autoridad).
+export async function miJornadaDetalle(miembroId, desdeFecha, hastaFecha) {
+  if (navigator.onLine === false) throw errorSinSenal();
+  const { data, error } = await conLimite(cliente
+    .from('v_jornada_diaria')
+    .select('miembro_id, fecha, inicio_jornada, fin_jornada, bloques, minutos_pausa, minutos_efectivos, jornada_abierta, bloque_inconsistente, con_revision')
+    .eq('miembro_id', miembroId)
+    .gte('fecha', desdeFecha)
+    .lte('fecha', hastaFecha)
+    .order('fecha'), 15000);
+  if (error) throw error;
+  return data || [];
+}
+
+// Revisiones de coordinación sobre las checadas de la persona (RLS: solo las de sus propias checadas).
+export async function revisionesDeMisChecadas(eventoIds) {
+  if (navigator.onLine === false) throw errorSinSenal();
+  if (!eventoIds.length) return [];
+  const filas = [];
+  for (let i = 0; i < eventoIds.length; i += 100) {   // en grupos: la lista viaja en la dirección de la consulta
+    const { data, error } = await conLimite(cliente
+      .from('revisiones')
+      .select('evento_id, decision, comentario, revisado_en')
+      .in('evento_id', eventoIds.slice(i, i + 100)), 15000);
+    if (error) throw error;
+    filas.push(...data);
+  }
+  return filas;
+}
