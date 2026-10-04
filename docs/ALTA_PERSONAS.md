@@ -178,6 +178,16 @@ llave secreta en ningún lado**.
    función revisa por su cuenta quién la llama y solo atiende a administración. Si la dejas activada y el panel dice
    "No se pudo consultar el servicio de cuentas", esta es la causa.
 
+**Diagnóstico:** abre en el navegador `https://<tu-proyecto>.supabase.co/functions/v1/alta-persona`.
+
+| Lo que muestra | Qué significa | Qué hacer |
+|---|---|---|
+| `{"funcion":"alta-persona","publicada":true,"llave_secreta":true,…}` | Todo bien | Nada |
+| `"llave_secreta":false` | La función no encuentra su llave secreta | Avisar a Ecosistémica |
+| "Requested function was not found" / `NOT_FOUND` | No está publicada o tiene otro nombre | Publicarla como `alta-persona` |
+| "Missing authorization header" / 401 | La verificación de JWT sigue activada | Desactivarla (paso 6) |
+| `BOOT_ERROR` / "failed to start" | No arranca | Mandar captura de sus Logs a Ecosistémica |
+
 ### Una vez · Nombrar a la primera persona de administración
 
 Las demás se nombran desde el panel. Cambia el correo y corre en **SQL Editor**:

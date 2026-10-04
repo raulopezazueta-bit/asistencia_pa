@@ -28,8 +28,9 @@
 // asis-2026-10-04-v23 · T-02 (parte 1) panel cómodo en el celular: menú fijo de secciones con pendientes, incidencias antes de reportes y acceso al panel desde Inicio.
 // asis-2026-10-04-v24 · HU-09 personas desde el panel (administración): alta con contraseña temporal, rol, horario con historia, baja que bloquea el acceso y reactivación; cambio de contraseña en la app (requiere publicar la función alta-persona).
 // asis-2026-10-04-v25 · HU-09 ajuste: si la función alta-persona no responde, el panel explica la causa (ya no dice "sin señal"); función en un solo archivo para publicarla más fácil.
+// asis-2026-10-04-v26 · HU-09 ajuste: la función alta-persona acepta las llaves nuevas de Supabase y tiene diagnóstico al abrir su dirección en el navegador.
 
-const CACHE_VERSION = 'asis-2026-10-04-v25';
+const CACHE_VERSION = 'asis-2026-10-04-v26';
 
 const CASCARON = [
   './',

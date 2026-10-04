@@ -6,9 +6,19 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { atender } from './logica.js';
 
-const URL = Deno.env.get('SUPABASE_URL')!;
-const LLAVE_SECRETA = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-const sb = createClient(URL, LLAVE_SECRETA, { auth: { persistSession: false, autoRefreshToken: false } });
+// La llave secreta la pone Supabase: SUPABASE_SERVICE_ROLE_KEY (llaves clásicas) o SUPABASE_SECRET_KEYS (llaves nuevas
+// sb_secret_…, en JSON). Si no está, la función igual arranca y responde con el diagnóstico (sin mostrar la llave).
+function llaveSecreta(): string | null {
+  const clasica = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  if (clasica) return clasica;
+  try {
+    const nuevas = JSON.parse(Deno.env.get('SUPABASE_SECRET_KEYS') || '{}');
+    return nuevas.default || Object.values(nuevas)[0] as string || null;
+  } catch { return null; }
+}
+const URL = Deno.env.get('SUPABASE_URL') || '';
+const LLAVE_SECRETA = llaveSecreta();
+const sb: any = URL && LLAVE_SECRETA ? createClient(URL, LLAVE_SECRETA, { auth: { persistSession: false, autoRefreshToken: false } }) : null;
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -71,7 +81,10 @@ const bd = {
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
   const json = (status: number, cuerpo: unknown) => new Response(JSON.stringify(cuerpo), { status, headers: { ...CORS, 'Content-Type': 'application/json' } });
+  // Diagnóstico: abrir la dirección de la función en el navegador (GET) dice si está publicada y si tiene su llave
+  if (req.method === 'GET') return json(200, { funcion: 'alta-persona', publicada: true, llave_secreta: !!LLAVE_SECRETA, url: !!URL });
   if (req.method !== 'POST') return json(405, { error: 'Método no permitido' });
+  if (!sb) return json(500, { error: 'La función alta-persona no encontró su llave secreta en Supabase. Avisa a soporte (Ecosistémica).' });
   try {
     // Quién llama: se valida su token con Supabase Auth (no se confía en lo que diga el cuerpo)
     const token = (req.headers.get('Authorization') || '').replace(/^Bearer /i, '');
