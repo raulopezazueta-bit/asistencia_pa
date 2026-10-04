@@ -1,14 +1,15 @@
-// Panel de coordinación (panel.html): tablero del día (HU-27) e incidencias (HU-29).
+// Panel de coordinación (panel.html): tablero del día (HU-27), bandeja de revisión (HU-23) e incidencias (HU-29).
 // Usa la misma sesión que la app del asesor (mismo teléfono o computadora). Necesita señal.
 import * as sesion from './sesion.js';
 import * as api from './api.js';
 import * as sitios from './sitios.js';
 import { TIPOS, ESTADOS, nombreChecada } from './incidencias.js';
 import { tableroDelDia } from './tablero.js';
+import { armarBandeja, MOTIVOS } from './bandeja.js';
 import { rangoDelDia, diasDeLaSemana, formatoHoras } from './reglas.js';
 
 const $ = (id) => document.getElementById(id);
-const estado = { perfil: null, filtro: 'pendiente' };
+const estado = { perfil: null, filtro: 'pendiente', bandeja: 'pendientes' };
 
 const DIAS = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
 const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
@@ -51,10 +52,13 @@ async function iniciar() {
   $('panel').hidden = false;
   $('filtro-pendientes').addEventListener('click', () => filtrar('pendiente'));
   $('filtro-resueltas').addEventListener('click', () => filtrar('resueltas'));
-  $('hoy-actualizar').addEventListener('click', () => { pintarHoy(); pintar(); });
-  // Se actualiza solo cada 2 minutos mientras el panel está a la vista
+  $('bandeja-pendientes').addEventListener('click', () => filtrarBandeja('pendientes'));
+  $('bandeja-revisadas').addEventListener('click', () => filtrarBandeja('revisadas'));
+  $('hoy-actualizar').addEventListener('click', () => { pintarHoy(); pintarBandeja(); pintar(); });
+  // Se actualiza solo cada 2 minutos mientras el panel está a la vista (la bandeja no, para no borrar lo que se escribe)
   setInterval(() => { if (document.visibilityState === 'visible') { pintarHoy(); pintar(); } }, 120_000);
-  await Promise.all([pintarHoy(), pintar()]);
+  await sitios.actualizar(r.perfil).catch(() => null);   // nombres de parques (una descarga al día, compartida con la app)
+  await Promise.all([pintarHoy(), pintarBandeja(), pintar()]);
 }
 
 // ---------- Tablero del día (HU-27) ----------
@@ -78,8 +82,7 @@ async function pintarHoy() {
       const [miembros, horarios, eventos, corregidas] = await Promise.all([
         api.miembrosDeOrganizacion(p.organizacionId), api.horariosDeOrganizacion(p.organizacionId),
         api.eventosDeOrganizacion(p.organizacionId, desde.toISOString(), hasta.toISOString()),
-        api.corregidasDeOrganizacion(p.organizacionId),
-        sitios.actualizar(p).catch(() => null)
+        api.corregidasDeOrganizacion(p.organizacionId)
       ]);
       const catalogo = await sitios.todos(p.organizacionId);
       const t = tableroDelDia({ miembros, horarios, eventos, corregidas, sitios: catalogo, ahora, zona: zona(), config: p.organizacion.config || {} });
@@ -139,6 +142,161 @@ function filtrar(f) {
   $('filtro-pendientes').setAttribute('aria-selected', String(f === 'pendiente'));
   $('filtro-resueltas').setAttribute('aria-selected', String(f !== 'pendiente'));
   pintar();
+}
+
+// ---------- Bandeja de revisión (HU-23) ----------
+function filtrarBandeja(f) {
+  estado.bandeja = f;
+  $('bandeja-pendientes').setAttribute('aria-selected', String(f === 'pendientes'));
+  $('bandeja-revisadas').setAttribute('aria-selected', String(f !== 'pendientes'));
+  pintarBandeja();
+}
+
+async function pintarBandeja() {
+  const p = estado.perfil;
+  try {
+    const desde = new Date(Date.now() - 30 * 864e5).toISOString();
+    const [eventos, revisiones, incidencias, catalogo] = await Promise.all([
+      api.eventosPorRevisar(p.organizacionId, desde), api.revisionesDeOrganizacion(p.organizacionId, desde),
+      api.incidenciasSobreChecadas(p.organizacionId), sitios.todos(p.organizacionId)
+    ]);
+    const nombreSitio = new Map(catalogo.map((x) => [x.id, x.nombre]));
+    const b = armarBandeja({ eventos, revisiones, incidencias });
+    $('contador-revisar').textContent = `(${b.porRevisar.length})`;
+    const lista = estado.bandeja === 'pendientes' ? b.porRevisar : b.revisadas;
+    $('bandeja-lista').replaceChildren(...lista.map((item) => tarjetaRevision(item, nombreSitio)));
+    $('bandeja-vacio').textContent = estado.bandeja === 'pendientes' ? 'No hay checadas por revisar.' : 'No hay checadas revisadas en los últimos 30 días.';
+    $('bandeja-vacio').hidden = lista.length > 0;
+  } catch (e) {
+    aviso(api.esErrorDeRed(e) ? 'Sin señal: el panel necesita conexión. Recarga cuando tengas señal.' : `No se pudo leer la bandeja de revisión: ${e.message}`, 'critico');
+  }
+}
+
+function tarjetaRevision({ evento: e, revision, incidenciaAprobada, incidenciaPendiente }, nombreSitio) {
+  const art = document.createElement('article');
+  art.className = 'tarjeta incidencia';
+  art.dataset.evento = e.id;
+  const cab = document.createElement('div');
+  cab.className = 'incidencia__cabecera';
+  const nombre = document.createElement('p');
+  nombre.className = 'lista__titulo';
+  nombre.textContent = e.persona?.nombre_completo || 'Persona';
+  cab.append(nombre);
+  if (revision || incidenciaAprobada) {
+    const chip = document.createElement('span');
+    chip.className = `chip ${revision?.decision === 'observada' ? 'chip--aviso' : 'chip--ok'}`;
+    chip.textContent = revision ? (revision.decision === 'validada' ? 'Validada' : 'Observada') : 'Aclarada por incidencia';
+    cab.append(chip);
+  }
+  const motivos = document.createElement('div');
+  motivos.className = 'revision__motivos';
+  for (const m of e.motivos_revision || []) {
+    const c = document.createElement('span');
+    c.className = 'chip chip--critico';
+    c.textContent = MOTIVOS[m] || m;
+    motivos.append(c);
+  }
+  art.append(cab, motivos);
+  art.append(linea('Checada', `${nombreChecada(e.tipo, e.bloque)} · `, mono(fechaHora(e.hora_efectiva)),
+    e.capturado_sin_conexion ? ' · sin conexión (hora del teléfono)' : ''));
+  const lugar = [];
+  if (e.sitio_id) lugar.push(nombreSitio.get(e.sitio_id) || 'Sitio');
+  if (e.distancia_sitio_m != null) lugar.push(`a ${Math.round(e.distancia_sitio_m)} m`);
+  if (e.precision_m != null) lugar.push(`precisión estimada ±${Math.round(e.precision_m)} m`);
+  art.append(linea('Lugar', lugar.length ? lugar.join(' · ') : 'Sin ubicación'));
+  if (e.modalidad === 'teletrabajo') art.append(linea('Modalidad', 'Teletrabajo'));
+  if (e.justificacion) art.append(linea('Justificación', e.justificacion));
+  if (incidenciaPendiente) art.append(linea('Incidencia', 'la persona pidió una corrección de esta checada (ver Incidencias)'));
+  if (incidenciaAprobada) art.append(linea('Incidencia', 'aprobada: la checada se corrigió o se aclaró'));
+
+  // Selfie: enlace temporal de 60 s, solo al pedirlo
+  if (e.selfie_path) {
+    const ver = document.createElement('button');
+    ver.type = 'button';
+    ver.className = 'boton boton--chico';
+    ver.dataset.selfie = '';
+    ver.textContent = 'Ver selfie';
+    ver.addEventListener('click', async () => {
+      ver.disabled = true;
+      try {
+        const img = document.createElement('img');
+        img.className = 'revision__selfie';
+        img.alt = `Selfie de ${e.persona?.nombre_completo || 'la persona'}`;
+        img.src = await api.urlSelfie(e.selfie_path);
+        ver.replaceWith(img);
+      } catch (err) {
+        ver.disabled = false;
+        ver.textContent = api.esErrorDeRed(err) ? 'Sin señal: reintentar' : 'No se pudo abrir la selfie';
+      }
+    });
+    art.append(ver);
+  } else {
+    art.append(linea('Selfie', 'no se tomó'));
+  }
+
+  if (revision) {
+    art.append(linea('Revisó', `${revision.revisor?.nombre_completo || '—'} · `, mono(fechaHora(revision.revisado_en))));
+    if (revision.comentario) art.append(linea('Comentario', revision.comentario));
+    return art;
+  }
+  if (incidenciaAprobada) return art;
+  if (e.miembro_id === estado.perfil.miembroId) {
+    const nota = document.createElement('p');
+    nota.className = 'secundario chico';
+    nota.textContent = 'Es tu checada: la revisa otra persona de coordinación.';
+    art.append(nota);
+    return art;
+  }
+  const campo = document.createElement('label');
+  campo.className = 'campo';
+  const et = document.createElement('span');
+  et.className = 'campo__etiqueta';
+  et.textContent = 'Comentario (obligatorio para observar)';
+  const texto = document.createElement('textarea');
+  texto.className = 'campo__entrada';
+  texto.rows = 2;
+  texto.maxLength = 500;
+  campo.append(et, texto);
+  const error = document.createElement('p');
+  error.className = 'aviso aviso--critico';
+  error.setAttribute('role', 'alert');
+  error.hidden = true;
+  const botones = document.createElement('div');
+  botones.className = 'incidencia__botones';
+  const validar = document.createElement('button');
+  validar.type = 'button';
+  validar.className = 'boton boton--lleno';
+  validar.dataset.revisar = 'validada';
+  validar.textContent = 'Validar';
+  const observar = document.createElement('button');
+  observar.type = 'button';
+  observar.className = 'boton boton--tierra';
+  observar.dataset.revisar = 'observada';
+  observar.textContent = 'Observar';
+  botones.append(validar, observar);
+  art.append(campo, error, botones);
+  const decidir = async (decision) => {
+    const comentario = texto.value.trim();
+    error.hidden = true;
+    if (decision === 'observada' && comentario.length < 5) {
+      error.textContent = 'Para observar, escribe el motivo (al menos 5 caracteres).';
+      error.hidden = false;
+      return texto.focus();
+    }
+    validar.disabled = observar.disabled = true;
+    try {
+      await api.revisarEvento(e.id, decision, comentario);
+      aviso(`Checada de ${e.persona?.nombre_completo || 'la persona'} ${decision === 'validada' ? 'validada' : 'observada'}.`, 'ok');
+      await pintarBandeja();
+    } catch (err) {
+      error.textContent = api.esErrorDeRed(err) ? 'Sin señal: no se pudo guardar. Intenta de nuevo.' : `No se pudo guardar: ${err.message}`;
+      error.hidden = false;
+      validar.disabled = observar.disabled = false;
+    }
+  };
+  validar.addEventListener('click', () => decidir('validada'));
+  observar.addEventListener('click', () => decidir('observada'));
+  return art;
 }
 
 // ---------- Incidencias (HU-29) ----------
@@ -256,7 +414,7 @@ function tarjeta(i) {
       aviso(nuevo === 'aprobada'
         ? `Incidencia de ${i.persona?.nombre_completo || 'la persona'} aprobada${i.tipo_evento_propuesto ? ': se agregó la checada corregida' : ''}.`
         : `Incidencia de ${i.persona?.nombre_completo || 'la persona'} rechazada.`, 'ok');
-      await pintar();
+      await Promise.all([pintar(), pintarBandeja()]);
     } catch (e) {
       error.textContent = api.esErrorDeRed(e) ? 'Sin señal: no se pudo guardar. Intenta de nuevo.' : `No se pudo guardar: ${e.message}`;
       error.hidden = false;

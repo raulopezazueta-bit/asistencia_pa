@@ -325,3 +325,7 @@ textarea.campo__entrada { resize: vertical; min-height: 88px; }
   .tabla tbody td[colspan] { grid-column: 1 / -1; }
 }
 .tabla thead .tabla__num { font-family: var(--sans); }
+
+/* Bandeja de revisión (HU-23) */
+.revision__motivos { display: flex; flex-wrap: wrap; gap: 6px; }
+.revision__selfie { width: 100%; max-width: 240px; aspect-ratio: 4 / 3; object-fit: cover; border-radius: var(--radio-chico); background: #2B302D; }

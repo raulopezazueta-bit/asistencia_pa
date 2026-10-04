@@ -2,9 +2,11 @@
 // Se usa porque la sesión de desarrollo no tiene salida a *.supabase.co; la prueba real es desde el celular.
 // Imita las reglas RLS relevantes: cada usuario solo ve sus filas de `miembros`.
 
+import { readFileSync } from 'node:fs';
 import { sitioParaPunto, evaluarSitio } from '../js/geo.js';
 import { partesLocales, rangoDelDia, resumenDelDia } from '../js/reglas.js';
 
+const FOTO_PRUEBA = readFileSync(new URL('./recursos/foto_prueba.jpg', import.meta.url));
 export const URL_SUPABASE = 'https://kkaaaaifzyjnafvmfdqe.supabase.co';
 
 export const ORGS = {
@@ -126,10 +128,10 @@ export function eventoServidor(tipo, hora, extra = {}) {
 // Las rutas se instalan en el contexto: así también se atienden los envíos del service worker (Background Sync).
 // horaServidor: Date que el "servidor" sella en el token (HU-19, diferencia de reloj).
 // horarioAsesor: reemplaza el horario del asesor de prueba (filas como las de la tabla horarios).
-// incidencias: filas iniciales de la tabla incidencias (ver incidenciaServidor).
-export async function simularSupabase(page, { sitiosPA = 782, sitiosDemo = 3, eventos = [], configPA = {}, rechazarEventos = false, horaServidor = null, horarioAsesor = HORARIO_ASESOR, incidencias = [] } = {}) {
+// incidencias: filas iniciales de la tabla incidencias (ver incidenciaServidor). revisiones: filas iniciales de revisiones.
+export async function simularSupabase(page, { sitiosPA = 782, sitiosDemo = 3, eventos = [], configPA = {}, rechazarEventos = false, horaServidor = null, horarioAsesor = HORARIO_ASESOR, incidencias = [], revisiones = [] } = {}) {
   const registro = [];
-  const estado = { sinRed: false, recibidos: [], selfies: [], incidencias };
+  const estado = { sinRed: false, recibidos: [], selfies: [], incidencias, revisiones, firmadas: [] };
   // Domicilio ficticio del asesor de prueba: RLS solo se lo muestra a él (y a coordinación).
   const domicilio = { ...sitiosFicticios('pa', 1, 'D')[0], id: 'dddddddd-dddd-0000-0000-000000000001', clave_externa: null,
     id_oficial: null, nombre: 'Domicilio ficticio', tipo: 'domicilio', miembro_id: 'aaaaaaaa-0000-0000-0000-000000000001', perimetro_geojson: null };
@@ -287,7 +289,13 @@ export async function simularSupabase(page, { sitiosPA = 782, sitiosDemo = 3, ev
         : eventos.filter((e) => mios.includes(e.miembro_id) && `eq.${e.miembro_id}` === url.searchParams.get('miembro_id'));
       if (desde) filas = filas.filter((e) => new Date(e.hora_efectiva) >= new Date(desde));
       if (hasta) filas = filas.filter((e) => new Date(e.hora_efectiva) < new Date(hasta));
-      filas.sort((a, b) => new Date(a.hora_efectiva) - new Date(b.hora_efectiva));
+      const revision = url.searchParams.get('estado_revision');
+      if (revision) filas = filas.filter((e) => `eq.${e.estado_revision}` === revision);
+      const desc = /hora_efectiva\.desc/.test(url.searchParams.get('order') || '');
+      filas.sort((a, b) => (desc ? -1 : 1) * (new Date(a.hora_efectiva) - new Date(b.hora_efectiva)));
+      if (/persona:/.test(url.searchParams.get('select') || '')) {
+        filas = filas.map((e) => ({ ...e, persona: { nombre_completo: MIEMBROS.find((m) => m.id === e.miembro_id)?.nombre_completo } }));
+      }
       return json(route, 200, filas);
     }
 
@@ -378,6 +386,45 @@ export async function simularSupabase(page, { sitiosPA = 782, sitiosDemo = 3, ev
         }
         return json(route, 200, [{ id: inc.id, estado: inc.estado }]);
       }
+    }
+
+    // Revisiones (HU-23): imita RLS y el trigger preparar_revision (migración 0004)
+    if (url.pathname === '/rest/v1/revisiones') {
+      const u = usuarioDeToken(req);
+      if (!u) return json(route, 401, { code: 'PGRST301', message: 'JWT expired' });
+      const orgsCoord = u.miembros.filter((m) => m.activo && m.rol !== 'asesor').map((m) => ORGS[m.org].id);
+      if (req.method() === 'GET') {
+        const org = url.searchParams.get('organizacion_id')?.slice(3);
+        const filas = revisiones.filter((r) => orgsCoord.includes(r.organizacion_id) && (!org || r.organizacion_id === org))
+          .map((r) => ({ ...r, revisor: { nombre_completo: MIEMBROS.find((m) => m.id === r.revisado_por)?.nombre_completo } }));
+        return json(route, 200, filas);
+      }
+      if (req.method() === 'POST') {
+        const f = req.postDataJSON();
+        const e = eventos.find((x) => x.id === f.evento_id);
+        const org = e?.organizacion_id || ORGS.pa.id;
+        const yo = u.miembros.find((m) => m.activo && m.rol !== 'asesor' && ORGS[m.org].id === org);
+        const errorBD = (message) => json(route, 400, { code: 'P0001', message });
+        if (!e) return errorBD('Checada inexistente');
+        if (e.estado_revision !== 'revisar') return errorBD('Solo se revisan checadas marcadas para revisión');
+        if (!yo) return errorBD('Solo coordinación puede revisar checadas');
+        if (yo.id === e.miembro_id) return errorBD('Nadie revisa sus propias checadas');
+        if (f.decision === 'observada' && String(f.comentario || '').trim().length < 5) return errorBD('Para observar, escribe el motivo (al menos 5 caracteres)');
+        if (revisiones.some((r) => r.evento_id === f.evento_id)) return json(route, 409, { code: '23505', message: 'duplicate key value violates unique constraint "revisiones_evento_id_key"' });
+        revisiones.push({ evento_id: f.evento_id, decision: f.decision, comentario: f.comentario, organizacion_id: org, revisado_por: yo.id, revisado_en: new Date().toISOString() });
+        return json(route, 201, undefined);
+      }
+    }
+
+    // Enlace temporal de selfie (createSignedUrl) y la imagen que entrega
+    if (url.pathname.startsWith('/storage/v1/object/sign/selfies/')) {
+      const u = usuarioDeToken(req);
+      if (req.method() === 'POST') {
+        if (!u) return json(route, 400, { statusCode: '403', message: 'invalid JWT' });
+        estado.firmadas.push(decodeURIComponent(url.pathname.slice('/storage/v1/object/sign/selfies/'.length)));
+        return json(route, 200, { signedURL: `${url.pathname.slice('/storage/v1'.length)}?token=prueba` });
+      }
+      return route.fulfill({ status: 200, headers: { ...CORS, 'Content-Type': 'image/jpeg' }, body: FOTO_PRUEBA });
     }
 
     if (url.pathname === '/rest/v1/v_sitios_app' && req.method() === 'GET') {

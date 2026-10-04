@@ -4,7 +4,7 @@ Derivado del product backlog (38 historias). Aquí solo está lo que construye l
 Los IDs `HU-xx` coinciden con el backlog maestro. Estado al 2-oct-2026: **HU-06 (modelo de datos) hecho** en
 `supabase/migrations/0001_esquema_inicial.sql`, con pruebas en `supabase/tests/`.
 
-Migraciones: `0001` y `0002` aplicadas; **`0003_incidencias.sql` (v17) debe aplicarse en el SQL Editor de Supabase** (validaciones de incidencias y la hora corregida reemplaza a la original en `v_jornada_diaria`).
+Migraciones: `0001` y `0002` aplicadas; **`0003_incidencias.sql` (v17) y `0004_revisiones.sql` (v19) deben aplicarse en el SQL Editor de Supabase, en ese orden** (0003: validaciones de incidencias y la hora corregida reemplaza a la original en `v_jornada_diaria`; 0004: tabla `revisiones` para validar u observar checadas sin modificarlas).
 (0002: pausas sin revisión de zona por decisión del PO del 3-oct-2026; teletrabajo validado contra el domicilio propio).
 
 Leyenda: ☐ pendiente · ◐ en curso · ☑ terminado (al cerrar, poner la versión `vNN`)
@@ -52,7 +52,7 @@ HU-15 pasa al Sprint 4.
 | ☑ v16 | HU-24 | Visitas a parques | Llegada/salida por parque; llegar a otro parque cierra el anterior; pantalla Visitas §7.3 |
 | ☑ v18 | HU-27 | Panel de coordinación | `panel.html` §8 (tarjetas + tabla del día) solo para `coordinador`/`admin` |
 | ☑ v17 | HU-28/29 | Incidencias | Asesor solicita con motivo (≥ 5 caracteres); coordinación aprueba/rechaza; el evento corregido aparece con `origen = 'incidencia'` |
-| ☐ | HU-23 | Bandeja de revisión | Lista de eventos `revisar` con motivos y selfie (URL firmada) |
+| ☑ v19 | HU-23 | Bandeja de revisión | Lista de eventos `revisar` con motivos y selfie (URL firmada) |
 | ☐ | HU-31 | Reporte para autoridad | PDF por periodo y persona: datos de la organización, persona, cada día con inicio, fin, bloques, pausas, minutos efectivos y marcas de revisión/incidencia |
 | ☐ | HU-16 | Mi registro | El asesor consulta y descarga su historial (CSV y PDF) |
 | ☐ | HU-15 | Recordatorio de salida | Notificación local si el bloque sigue abierto 30 min después del fin programado |

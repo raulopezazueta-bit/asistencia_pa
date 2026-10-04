@@ -318,3 +318,57 @@ export async function corregidasDeOrganizacion(organizacionId) {
   if (error) throw error;
   return new Set((data || []).map((f) => f.evento_original_id));
 }
+
+// ---------- Panel: bandeja de revisión (HU-23) ----------
+
+// Checadas que el servidor marcó "revisar" desde una fecha, con el nombre de la persona.
+export async function eventosPorRevisar(organizacionId, desdeISO) {
+  const { data, error } = await conLimite(cliente
+    .from('eventos_jornada')
+    .select('id, miembro_id, tipo, bloque, modalidad, hora_efectiva, hora_dispositivo, capturado_sin_conexion, sitio_id, distancia_sitio_m, precision_m, motivos_revision, justificacion, selfie_path, persona:miembros!miembro_id(nombre_completo)')
+    .eq('organizacion_id', organizacionId)
+    .eq('estado_revision', 'revisar')
+    .gte('hora_efectiva', desdeISO)
+    .order('hora_efectiva', { ascending: false })
+    .limit(500), 20000);
+  if (error) throw error;
+  return data || [];
+}
+
+// Decisiones de coordinación (migración 0004) desde una fecha.
+export async function revisionesDeOrganizacion(organizacionId, desdeISO) {
+  const { data, error } = await conLimite(cliente
+    .from('revisiones')
+    .select('evento_id, decision, comentario, revisado_en, revisor:miembros!revisado_por(nombre_completo)')
+    .eq('organizacion_id', organizacionId)
+    .gte('revisado_en', desdeISO), 15000);
+  if (error) throw error;
+  return data || [];
+}
+
+// Incidencias (pendientes o aprobadas) que se refieren a una checada: la bandeja las muestra junto a ella.
+export async function incidenciasSobreChecadas(organizacionId) {
+  const { data, error } = await conLimite(cliente
+    .from('incidencias')
+    .select('evento_original_id, tipo, estado')
+    .eq('organizacion_id', organizacionId)
+    .neq('estado', 'rechazada')
+    .not('evento_original_id', 'is', null), 15000);
+  if (error) throw error;
+  return data || [];
+}
+
+// Coordinación valida u observa una checada. Inserción simple: una sola decisión por checada (no se edita).
+export async function revisarEvento(eventoId, decision, comentario) {
+  const { error } = await conLimite(cliente
+    .from('revisiones')
+    .insert({ evento_id: eventoId, decision, comentario: comentario || null }), 15000);
+  if (error) throw error;
+}
+
+// Enlace temporal (60 s) para ver una selfie del bucket privado. Solo coordinación o la propia persona pueden.
+export async function urlSelfie(ruta) {
+  const { data, error } = await conLimite(cliente.storage.from('selfies').createSignedUrl(ruta, 60), 15000);
+  if (error) throw error;
+  return data.signedUrl;
+}

@@ -66,6 +66,20 @@
           </article>
         </section>
 
+        <!-- Bandeja de revisión (HU-23) -->
+        <section class="vista" aria-labelledby="bandeja-titulo">
+          <div class="panel__cabecera">
+            <h2 class="panel__titulo" id="bandeja-titulo">Bandeja de revisión</h2>
+            <div class="panel__filtros" role="tablist" aria-label="Filtrar checadas">
+              <button class="boton boton--chico" type="button" role="tab" id="bandeja-pendientes" aria-selected="true">Por revisar <span id="contador-revisar" class="mono"></span></button>
+              <button class="boton boton--chico" type="button" role="tab" id="bandeja-revisadas" aria-selected="false">Revisadas</button>
+            </div>
+          </div>
+          <p class="secundario chico">Checadas de los últimos 30 días que el sistema marcó para revisión. Validar u observar no cambia la checada: tu decisión queda registrada aparte. La selfie solo es evidencia (sin reconocimiento facial).</p>
+          <div class="panel__lista" id="bandeja-lista" aria-live="polite"></div>
+          <p class="secundario" id="bandeja-vacio" hidden></p>
+        </section>
+
         <!-- Incidencias (HU-29) -->
         <section class="vista" aria-labelledby="incidencias-titulo">
           <div class="panel__cabecera">
