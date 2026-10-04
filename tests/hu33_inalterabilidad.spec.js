@@ -125,7 +125,7 @@ test('el código de la app nunca pide editar ni borrar en el servidor', () => {
   for (const u of upserts) expect(u).toContain('ignoreDuplicates: true');
   expect(api).toMatch(/upload\([^)]*upsert: false/);              // las selfies nunca se reemplazan
   // Ningún otro módulo habla con Supabase directamente
-  for (const m of ['app', 'cola', 'checada', 'jornada', 'sitios', 'sesion', 'camara', 'geo', 'reglas', 'reloj', 'almacen', 'horas', 'incidencias', 'correccion', 'panel']) {
+  for (const m of ['app', 'cola', 'checada', 'jornada', 'sitios', 'sesion', 'camara', 'geo', 'reglas', 'reloj', 'almacen', 'horas', 'incidencias', 'correccion', 'panel', 'tablero']) {
     expect(leer(`js/${m}.js`), m).not.toMatch(/supabase\.|cliente\.from|\.storage\./);
   }
   // El envío en segundo plano del service worker solo usa POST con "ignore-duplicates"

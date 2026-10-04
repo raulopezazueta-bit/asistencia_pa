@@ -167,6 +167,13 @@ export async function simularSupabase(page, { sitiosPA = 782, sitiosDemo = 3, ev
       if (!u) return json(route, 401, { code: 'PGRST301', message: 'JWT expired' });
       const filtroUser = url.searchParams.get('user_id');
       const filtroActivo = url.searchParams.get('activo');
+      const filtroOrg = url.searchParams.get('organizacion_id');
+      if (filtroOrg && !filtroUser) {   // panel: coordinación ve a todas las personas de su organización (RLS mie_ver)
+        const org = Object.keys(ORGS).find((k) => `eq.${ORGS[k].id}` === filtroOrg);
+        const coord = u.miembros.some((m) => m.activo && m.rol !== 'asesor' && m.org === org);
+        const filas = coord ? MIEMBROS.filter((m) => m.org === org && m.activo).map((m) => ({ id: m.id, nombre_completo: m.nombre_completo, num_empleado: null, rol: m.rol })) : [];
+        return json(route, 200, filas.sort((a, b) => a.nombre_completo.localeCompare(b.nombre_completo)));
+      }
       let filas = u.miembros.map((m) => ({
         id: m.id, organizacion_id: ORGS[m.org].id, user_id: u.id, nombre_completo: m.nombre_completo, num_empleado: null,
         rol: m.rol, activo: m.activo,
@@ -180,7 +187,12 @@ export async function simularSupabase(page, { sitiosPA = 782, sitiosDemo = 3, ev
     if (url.pathname === '/rest/v1/horarios' && req.method() === 'GET') {
       const u = usuarioDeToken(req);
       if (!u) return json(route, 401, { code: 'PGRST301', message: 'JWT expired' });
-      const filas = u === USUARIOS.asesor && url.searchParams.get('miembro_id') === 'eq.aaaaaaaa-0000-0000-0000-000000000001' ? horarioAsesor : [];
+      const ASESOR = 'aaaaaaaa-0000-0000-0000-000000000001';
+      if (url.searchParams.get('organizacion_id') === `eq.${ORGS.pa.id}`) {   // panel: horarios de la organización
+        const coord = u.miembros.some((m) => m.activo && m.rol !== 'asesor' && m.org === 'pa');
+        return json(route, 200, coord ? horarioAsesor.map((h) => ({ miembro_id: ASESOR, ...h })) : []);
+      }
+      const filas = u === USUARIOS.asesor && url.searchParams.get('miembro_id') === `eq.${ASESOR}` ? horarioAsesor : [];
       return json(route, 200, filas);
     }
 
@@ -268,7 +280,11 @@ export async function simularSupabase(page, { sitiosPA = 782, sitiosDemo = 3, ev
       const mios = u.miembros.map((m) => m.id);
       const desde = url.searchParams.getAll('hora_efectiva').find((x) => x.startsWith('gte.'))?.slice(4);
       const hasta = url.searchParams.getAll('hora_efectiva').find((x) => x.startsWith('lt.'))?.slice(3);
-      let filas = eventos.filter((e) => mios.includes(e.miembro_id) && `eq.${e.miembro_id}` === url.searchParams.get('miembro_id'));
+      const orgsCoord = u.miembros.filter((m) => m.activo && m.rol !== 'asesor').map((m) => ORGS[m.org].id);
+      const filtroOrg = url.searchParams.get('organizacion_id');
+      let filas = filtroOrg
+        ? eventos.filter((e) => orgsCoord.includes(e.organizacion_id || ORGS.pa.id) && `eq.${e.organizacion_id || ORGS.pa.id}` === filtroOrg)
+        : eventos.filter((e) => mios.includes(e.miembro_id) && `eq.${e.miembro_id}` === url.searchParams.get('miembro_id'));
       if (desde) filas = filas.filter((e) => new Date(e.hora_efectiva) >= new Date(desde));
       if (hasta) filas = filas.filter((e) => new Date(e.hora_efectiva) < new Date(hasta));
       filas.sort((a, b) => new Date(a.hora_efectiva) - new Date(b.hora_efectiva));
@@ -314,7 +330,8 @@ export async function simularSupabase(page, { sitiosPA = 782, sitiosDemo = 3, ev
       const errorBD = (message) => json(route, 400, { code: 'P0001', message });
       if (req.method() === 'GET') {
         let filas = visibles();
-        for (const campo of ['miembro_id', 'organizacion_id', 'estado']) {
+        if (url.searchParams.get('evento_original_id') === 'not.is.null') filas = filas.filter((i) => i.evento_original_id);
+        for (const campo of ['miembro_id', 'organizacion_id', 'estado', 'tipo']) {
           const f = url.searchParams.get(campo);
           if (f?.startsWith('eq.')) filas = filas.filter((i) => i[campo] === f.slice(3));
           if (f?.startsWith('neq.')) filas = filas.filter((i) => i[campo] !== f.slice(4));

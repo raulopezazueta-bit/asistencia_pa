@@ -1,8 +1,11 @@
-// Panel de coordinación (panel.html). Por ahora: incidencias (HU-29). El tablero del día llega con HU-27.
+// Panel de coordinación (panel.html): tablero del día (HU-27) e incidencias (HU-29).
 // Usa la misma sesión que la app del asesor (mismo teléfono o computadora). Necesita señal.
 import * as sesion from './sesion.js';
 import * as api from './api.js';
+import * as sitios from './sitios.js';
 import { TIPOS, ESTADOS, nombreChecada } from './incidencias.js';
+import { tableroDelDia } from './tablero.js';
+import { rangoDelDia, diasDeLaSemana, formatoHoras } from './reglas.js';
 
 const $ = (id) => document.getElementById(id);
 const estado = { perfil: null, filtro: 'pendiente' };
@@ -48,7 +51,87 @@ async function iniciar() {
   $('panel').hidden = false;
   $('filtro-pendientes').addEventListener('click', () => filtrar('pendiente'));
   $('filtro-resueltas').addEventListener('click', () => filtrar('resueltas'));
-  await pintar();
+  $('hoy-actualizar').addEventListener('click', () => { pintarHoy(); pintar(); });
+  // Se actualiza solo cada 2 minutos mientras el panel está a la vista
+  setInterval(() => { if (document.visibilityState === 'visible') { pintarHoy(); pintar(); } }, 120_000);
+  await Promise.all([pintarHoy(), pintar()]);
+}
+
+// ---------- Tablero del día (HU-27) ----------
+const ESTADO_HOY = {
+  en_regla: ['En regla', 'chip--ok'], retardo: ['Retardo', 'chip--aviso'], revisar: ['Revisar', 'chip--critico'],
+  sin_checar: ['Sin checar', 'chip--critico'], por_iniciar: ['Por iniciar', '']
+};
+const SITUACION = { en_pausa: 'En pausa', fuera: 'Fuera de bloque', sin_registro: 'Sin registros hoy' };
+const horaCorta = (iso) => new Intl.DateTimeFormat('es-MX', { timeZone: zona(), hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(iso));
+
+let pintandoHoy = null;
+async function pintarHoy() {
+  if (pintandoHoy) return pintandoHoy;
+  pintandoHoy = (async () => {
+    const p = estado.perfil;
+    const ahora = new Date();
+    const lunes = diasDeLaSemana(ahora, zona())[0];
+    const desde = rangoDelDia(new Date(`${lunes}T12:00:00Z`), zona()).desde;
+    const hasta = rangoDelDia(ahora, zona()).hasta;
+    try {
+      const [miembros, horarios, eventos, corregidas] = await Promise.all([
+        api.miembrosDeOrganizacion(p.organizacionId), api.horariosDeOrganizacion(p.organizacionId),
+        api.eventosDeOrganizacion(p.organizacionId, desde.toISOString(), hasta.toISOString()),
+        api.corregidasDeOrganizacion(p.organizacionId),
+        sitios.actualizar(p).catch(() => null)
+      ]);
+      const catalogo = await sitios.todos(p.organizacionId);
+      const t = tableroDelDia({ miembros, horarios, eventos, corregidas, sitios: catalogo, ahora, zona: zona(), config: p.organizacion.config || {} });
+      const fecha = fechaHora(ahora.toISOString());
+      $('hoy-fecha').textContent = fecha.split(' · ')[0];
+      $('hoy-actualizado').textContent = `Actualizado ${horaCorta(ahora.toISOString())}`;
+      $('kpi-en-jornada').textContent = t.tarjetas.enJornada;
+      $('kpi-total').textContent = ` / ${t.tarjetas.total}`;
+      $('kpi-zona').textContent = t.tarjetas.dentroDeZona === null ? '—' : `${t.tarjetas.dentroDeZona}\u202f%`;
+      $('kpi-zona-detalle').textContent = t.tarjetas.checadasConZona
+        ? `esta semana · ${t.tarjetas.checadasConZona} ${t.tarjetas.checadasConZona === 1 ? 'checada revisada' : 'checadas revisadas'} por zona`
+        : 'esta semana · aún sin checadas revisadas por zona';
+      $('kpi-parques').textContent = t.tarjetas.parquesHoy;
+      $('tabla-hoy-cuerpo').replaceChildren(...t.filas.map(filaHoy));
+      if (!t.filas.length) {
+        const tr = document.createElement('tr');
+        const td = document.createElement('td');
+        td.colSpan = 5;
+        td.className = 'secundario';
+        td.textContent = 'Hoy nadie tiene horario ni checadas.';
+        tr.append(td);
+        $('tabla-hoy-cuerpo').replaceChildren(tr);
+      }
+    } catch (e) {
+      aviso(api.esErrorDeRed(e) ? 'Sin señal: el panel necesita conexión. Recarga cuando tengas señal.' : `No se pudo leer la jornada de hoy: ${e.message}`, 'critico');
+    }
+  })().finally(() => { pintandoHoy = null; });
+  return pintandoHoy;
+}
+
+function filaHoy(f) {
+  const tr = document.createElement('tr');
+  tr.dataset.miembro = f.miembroId;
+  const celda = (contenido, clase) => { const td = document.createElement('td'); if (clase) td.className = clase; td.append(...[].concat(contenido)); tr.append(td); return td; };
+  const sub = document.createElement('span');
+  sub.className = 'tabla__sub';
+  const situacion = f.situacion === 'en_jornada' ? `En bloque de ${f.bloqueAbierto}` : SITUACION[f.situacion];
+  sub.textContent = f.olvido ? `${situacion} · ¿olvidó checar salida?` : situacion;
+  const persona = document.createElement('th');
+  persona.scope = 'row';
+  persona.className = 'tabla__persona';
+  persona.append(f.nombre, sub);
+  tr.append(persona);
+  celda(f.entrada ? horaCorta(f.entrada) : '—', 'mono').dataset.etiqueta = 'Entrada';
+  celda(f.sitio || '—').dataset.etiqueta = 'Dónde está';
+  celda(`${formatoHoras(f.minutos)}${f.programados ? ` / ${formatoHoras(f.programados)}` : ''}`, 'tabla__num').dataset.etiqueta = 'Horas';
+  const [texto, clase] = ESTADO_HOY[f.estado];
+  const chip = document.createElement('span');
+  chip.className = `chip ${clase}`.trim();
+  chip.textContent = texto;
+  celda(chip);
+  return tr;
 }
 
 function filtrar(f) {
@@ -66,6 +149,7 @@ async function pintar() {
     const org = estado.perfil.organizacionId;
     const pendientes = await api.incidenciasDeOrganizacion(org, { estado: 'pendiente' });
     $('contador-pendientes').textContent = `(${pendientes.length})`;
+    $('kpi-incidencias').textContent = pendientes.length;
     const filas = estado.filtro === 'pendiente' ? pendientes
       : await api.incidenciasDeOrganizacion(org, { desdeISO: new Date(Date.now() - 30 * 864e5).toISOString() });
     lista.replaceChildren(...filas.map(tarjeta));

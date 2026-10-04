@@ -39,6 +39,33 @@
       <main class="contenido">
         <div class="aviso" id="panel-aviso" role="status" hidden></div>
 
+        <!-- Tablero del día (HU-27) -->
+        <section class="vista" aria-labelledby="hoy-titulo">
+          <div class="panel__cabecera">
+            <h2 class="panel__titulo" id="hoy-titulo">Hoy · <span id="hoy-fecha"></span></h2>
+            <div class="panel__filtros">
+              <span class="secundario chico" id="hoy-actualizado" role="status"></span>
+              <button class="boton boton--chico" type="button" id="hoy-actualizar">Actualizar</button>
+            </div>
+          </div>
+          <div class="kpis">
+            <article class="tarjeta kpi"><p class="kpi__etiqueta">En jornada ahora</p><p class="kpi__valor"><span id="kpi-en-jornada">—</span><span class="kpi__de" id="kpi-total"></span></p><p class="kpi__detalle">con un bloque abierto (incluye pausa)</p></article>
+            <article class="tarjeta kpi"><p class="kpi__etiqueta">Checadas dentro de zona</p><p class="kpi__valor" id="kpi-zona">—</p><p class="kpi__detalle" id="kpi-zona-detalle">esta semana</p></article>
+            <article class="tarjeta kpi"><p class="kpi__etiqueta">Incidencias por resolver</p><p class="kpi__valor" id="kpi-incidencias">—</p><p class="kpi__detalle"><a href="#incidencias-titulo">Ver abajo</a></p></article>
+            <article class="tarjeta kpi"><p class="kpi__etiqueta">Parques visitados hoy</p><p class="kpi__valor" id="kpi-parques">—</p><p class="kpi__detalle">distintos, por llegada o checada en el parque</p></article>
+          </div>
+          <article class="tarjeta">
+            <div class="tabla__marco">
+              <table class="tabla" id="tabla-hoy">
+                <caption class="solo-lector">Jornada de hoy por persona</caption>
+                <thead><tr><th scope="col">Persona</th><th scope="col">Entrada</th><th scope="col">Dónde está</th><th scope="col" class="tabla__num">Horas</th><th scope="col">Estado</th></tr></thead>
+                <tbody id="tabla-hoy-cuerpo"></tbody>
+              </table>
+            </div>
+            <p class="secundario chico" id="tabla-hoy-nota">Aparecen las personas con horario hoy o con alguna checada. "Sin checar": ya pasó la hora de entrada más la tolerancia.</p>
+          </article>
+        </section>
+
         <!-- Incidencias (HU-29) -->
         <section class="vista" aria-labelledby="incidencias-titulo">
           <div class="panel__cabecera">

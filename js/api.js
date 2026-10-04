@@ -261,3 +261,60 @@ export async function resolverIncidencia(id, estado, comentario) {
   if (!data?.length) throw new Error('La incidencia ya no está pendiente o no tienes permiso para resolverla.');
   return data[0];
 }
+
+// ---------- Panel: tablero del día (HU-27) ----------
+
+// Personas activas de la organización (RLS: solo coordinación y administración ven a todas).
+export async function miembrosDeOrganizacion(organizacionId) {
+  const { data, error } = await conLimite(cliente
+    .from('miembros')
+    .select('id, nombre_completo, num_empleado, rol')
+    .eq('organizacion_id', organizacionId)
+    .eq('activo', true)
+    .order('nombre_completo'), 15000);
+  if (error) throw error;
+  return data || [];
+}
+
+export async function horariosDeOrganizacion(organizacionId) {
+  const { data, error } = await conLimite(cliente
+    .from('horarios')
+    .select('miembro_id, dia_semana, bloque, hora_inicio, hora_fin, modalidad, vigente_desde, vigente_hasta')
+    .eq('organizacion_id', organizacionId), 15000);
+  if (error) throw error;
+  return data || [];
+}
+
+// Eventos de la organización entre dos instantes, en páginas de 1000 (tope de Supabase).
+export async function eventosDeOrganizacion(organizacionId, desdeISO, hastaISO) {
+  const PAGINA = 1000;
+  const filas = [];
+  for (let desde = 0; ; desde += PAGINA) {
+    const { data, error } = await conLimite(cliente
+      .from('eventos_jornada')
+      .select('id, miembro_id, tipo, bloque, modalidad, hora_efectiva, sitio_id, dentro_geocerca, estado_revision, origen')
+      .eq('organizacion_id', organizacionId)
+      .gte('hora_efectiva', desdeISO)
+      .lt('hora_efectiva', hastaISO)
+      .order('hora_efectiva')
+      .order('id')
+      .range(desde, desde + PAGINA - 1), 20000);
+    if (error) throw error;
+    filas.push(...data);
+    if (data.length < PAGINA) break;
+  }
+  return filas;
+}
+
+// Ids de checadas cuya hora corrigió una incidencia aprobada (ya no cuentan; migración 0003).
+export async function corregidasDeOrganizacion(organizacionId) {
+  const { data, error } = await conLimite(cliente
+    .from('incidencias')
+    .select('evento_original_id')
+    .eq('organizacion_id', organizacionId)
+    .eq('estado', 'aprobada')
+    .eq('tipo', 'correccion_hora')
+    .not('evento_original_id', 'is', null), 15000);
+  if (error) throw error;
+  return new Set((data || []).map((f) => f.evento_original_id));
+}

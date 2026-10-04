@@ -293,3 +293,35 @@ textarea.campo__entrada { resize: vertical; min-height: 88px; }
 .incidencia__etiqueta { color: var(--follaje); }
 .incidencia__botones { display: flex; gap: 8px; }
 .incidencia__botones > * { flex: 1; }
+
+/* Tablero del día (HU-27) */
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); gap: 12px; }
+@media (max-width: 479px) { .kpis { grid-template-columns: 1fr 1fr; } }
+.kpi { display: flex; flex-direction: column; gap: 2px; }
+.kpi__etiqueta { font-size: 13px; font-weight: 500; color: var(--follaje); }
+.kpi__valor { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 32px; font-weight: 500; line-height: 1.15; color: var(--grafito); }
+.kpi__de { font-size: 18px; color: var(--follaje); }
+.kpi__detalle { font-size: 13px; color: var(--follaje); }
+.kpi__detalle a { color: var(--verde); }
+.tabla__marco { overflow-x: auto; margin: -4px; padding: 4px; }
+.tabla { width: 100%; border-collapse: collapse; font-size: 14px; }
+.tabla thead th { text-align: left; font-size: 13px; font-weight: 500; color: var(--follaje); padding: 8px 10px; border-bottom: 1px solid var(--linea); white-space: nowrap; }
+.tabla td, .tabla tbody th { padding: 10px; text-align: left; border-bottom: 1px solid var(--linea); vertical-align: middle; }
+.tabla tbody tr:last-child > * { border-bottom: 0; }
+.tabla tbody tr:hover { background: rgb(20 80 58 / 4%); }
+.tabla .tabla__num { text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.tabla__persona { font-weight: 500; }
+.tabla__sub { display: block; font-size: 13px; color: var(--follaje); font-weight: 400; }
+@media (max-width: 599px) {
+  /* En celular cada persona es una ficha: nombre y estado arriba, entrada · lugar · horas abajo */
+  .tabla thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .tabla tbody tr { display: grid; grid-template-columns: 1fr auto; column-gap: 12px; row-gap: 2px; padding: 10px 0; border-bottom: 1px solid var(--linea); }
+  .tabla tbody tr:last-child { border-bottom: 0; }
+  .tabla tbody tr > * { padding: 0; border-bottom: 0; }
+  .tabla tbody th { grid-column: 1; grid-row: 1; }
+  .tabla tbody td:nth-child(5) { grid-column: 2; grid-row: 1; justify-self: end; }
+  .tabla tbody td:nth-child(2), .tabla tbody td:nth-child(3), .tabla tbody td:nth-child(4) { grid-column: 1 / -1; font-size: 13px; text-align: left; }
+  .tabla tbody td[data-etiqueta]::before { content: attr(data-etiqueta) ': '; color: var(--follaje); font-family: var(--sans); }
+  .tabla tbody td[colspan] { grid-column: 1 / -1; }
+}
+.tabla thead .tabla__num { font-family: var(--sans); }
