@@ -3,7 +3,7 @@
 import { CONFIG } from '../config.js';
 import * as sitios from './sitios.js';
 import * as cola from './cola.js';
-import { leerUbicacion, sitioParaPunto } from './geo.js';
+import { leerUbicacion, sitioParaPunto, evaluarSitio } from './geo.js';
 import { pasosPara, partesLocales } from './reglas.js';
 import * as camara from './camara.js';
 import * as reloj from './reloj.js';
@@ -184,8 +184,15 @@ export async function abrir({ perfil, estadoDia, eventos, horario, accion, bloqu
   const esPausa = ['inicio_pausa', 'fin_pausa'].includes(principal.tipo);
   const contraDomicilio = modalidad === 'teletrabajo' && config.validar_domicilio === true;
   const zonaInformativa = esPausa ? 'pausa' : (modalidad === 'teletrabajo' && !config.validar_domicilio ? 'teletrabajo' : null);
+  // Visitas a parques (HU-24): la llegada propone el parque del GPS y permite elegir otro; la salida es del parque actual.
+  const esLlegada = principal.tipo === 'llegada_sitio';
+  const esSalidaParque = principal.tipo === 'salida_sitio';
+  const sitioActual = estadoDia.enSitio ? catalogo.find((s) => s.id === estadoDia.enSitio.id) || null : null;
+  let elegido = esSalidaParque ? sitioActual : null;
   const candidatos = contraDomicilio ? catalogo.filter((s) => s.tipo === 'domicilio' && s.miembroId === perfil.miembroId) : catalogo;
   const TITULOS = {
+    llegada_sitio: [accion === 'cambio_sitio' ? 'Cambio de parque' : 'Llegada a parque', 'Confirmar llegada'],
+    salida_sitio: [`Salida de ${estadoDia.enSitio?.nombre || 'parque'}`, 'Confirmar salida'],
     inicio_bloque: [`Entrada · ${b}`, 'Confirmar entrada'],
     fin_bloque: [`Salida · ${b}`, 'Confirmar salida'],
     inicio_pausa: ['Inicio de comida/pausa', 'Confirmar pausa'],
@@ -206,7 +213,8 @@ export async function abrir({ perfil, estadoDia, eventos, horario, accion, bloqu
 
   let lectura = null, hallado = null, terminoGPS = false, errorGPS = null;
   // Justificación: solo en entrada/salida de campo fuera de zona. En pausas (comer fuera) la zona es informativa.
-  const necesitaJustificacion = () => esBloque && b === 'campo' && (!lectura || !hallado?.dentro);
+  // En la llegada a un parque fuera de su zona también se pide (coordinación verá por qué).
+  const necesitaJustificacion = () => ((esBloque && b === 'campo') || esLlegada) && (!lectura || !hallado?.dentro);
   const justificacionValida = () => $('checada-justificacion').value.trim().length >= MIN_JUSTIFICACION;
   // Selfie: obligatoria en inicio/fin de bloque si la organización lo pide (selfie_obligatoria);
   // en pausas y visitas solo si selfie_en_pausas_y_visitas = true.
@@ -214,16 +222,23 @@ export async function abrir({ perfil, estadoDia, eventos, horario, accion, bloqu
   const actualizarBoton = () => {
     const listoGPS = terminoGPS || (lectura && lectura.precision <= PRECISION_SUFICIENTE_M);
     const listaSelfie = !selfieRequerida || selfie?.lista();
-    $('checada-confirmar').disabled = !listoGPS || !listaSelfie || (necesitaJustificacion() && !justificacionValida());
+    const faltaParque = esLlegada && !hallado;
+    $('checada-confirmar').disabled = !listoGPS || !listaSelfie || faltaParque || (necesitaJustificacion() && !justificacionValida());
   };
   if (esBloque || selfieRequerida) selfie = prepararSelfie({ requerida: selfieRequerida, alCambiar: () => actualizarBoton() });
 
   const pintar = (restantes) => {
-    hallado = lectura ? sitioParaPunto(candidatos, lectura, lectura.precision) : null;
+    if (elegido) {
+      hallado = lectura
+        ? { sitio: elegido, ...evaluarSitio(elegido, lectura, lectura.precision) }
+        : { sitio: elegido, distancia: null, dentro: false, conPoligono: Boolean(elegido.perimetro?.coordinates?.length) };
+    } else {
+      hallado = lectura ? sitioParaPunto(candidatos, lectura, lectura.precision) : null;
+    }
     dibujarMapa(lectura, hallado);
     $('checada-sitio').textContent = hallado ? hallado.sitio.nombre : (lectura ? 'Ningún sitio a menos de 500 m' : '—');
     $('checada-distancia-etiqueta').textContent = hallado && !hallado.conPoligono ? 'Distancia al centro' : 'Distancia al perímetro';
-    $('checada-distancia').textContent = hallado ? `${Math.round(hallado.distancia)} m` : '—';
+    $('checada-distancia').textContent = hallado?.distancia != null ? `${Math.round(hallado.distancia)} m` : '—';
     $('checada-precision').textContent = lectura ? `±${Math.round(lectura.precision)} m` : '—';
     $('checada-mapa-pie').textContent = hallado
       ? `${hallado.conPoligono ? 'Perímetro' : `Radio de ${hallado.sitio.radioM} m`} · ${hallado.sitio.nombre}`
@@ -246,7 +261,8 @@ export async function abrir({ perfil, estadoDia, eventos, horario, accion, bloqu
     } else if (lectura) {
       zonaEl.className = 'aviso';
       zonaEl.textContent = hallado
-        ? `Fuera de la zona de ${hallado.sitio.nombre} (a ${Math.round(hallado.distancia)} m).`
+        ? `Fuera de la zona de ${hallado.sitio.nombre}${hallado.distancia != null ? ` (a ${Math.round(hallado.distancia)} m)` : ''}.`
+        : esLlegada ? 'No hay un parque a menos de 500 m: elige el parque con «Elegir otro parque».'
         : contraDomicilio
           ? (candidatos.length ? 'Estás a más de 500 m de tu domicilio registrado.' : 'No tienes un domicilio registrado en la app: pide a coordinación que lo dé de alta. Quedará para revisión.')
           : 'No estás en ningún sitio del catálogo.';
@@ -260,6 +276,29 @@ export async function abrir({ perfil, estadoDia, eventos, horario, accion, bloqu
     actualizarBoton();
   };
   $('checada-justificacion').oninput = actualizarBoton;
+
+  // Elegir el parque a mano (llegada): buscador del catálogo guardado en el teléfono
+  $('checada-sitio-elegir').hidden = !esLlegada;
+  $('checada-buscador').hidden = true;
+  $('checada-buscar').value = '';
+  $('checada-resultados').replaceChildren();
+  $('checada-otro-parque').onclick = () => { $('checada-buscador').hidden = false; $('checada-buscar').focus(); };
+  $('checada-buscar').oninput = async () => {
+    const encontrados = await sitios.buscar(perfil.organizacionId, $('checada-buscar').value, 8);
+    $('checada-resultados').replaceChildren(...encontrados.filter((x) => x.tipo !== 'domicilio').map((x) => {
+      const li = document.createElement('li');
+      const boton = document.createElement('button');
+      boton.type = 'button';
+      boton.className = 'opcion';
+      boton.dataset.sitio = x.id;
+      const t = document.createElement('span'); t.className = 'opcion__titulo'; t.textContent = x.nombre;
+      const d = document.createElement('span'); d.className = 'opcion__detalle'; d.textContent = [x.clave, x.colonia].filter(Boolean).join(' · ');
+      boton.append(t, d);
+      boton.onclick = () => { elegido = x; $('checada-buscador').hidden = true; pintar(); };
+      li.append(boton);
+      return li;
+    }));
+  };
   pintar();
 
   // 1) Ubicación: solo ahora, nunca en segundo plano

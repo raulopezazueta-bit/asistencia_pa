@@ -18,8 +18,9 @@
 // asis-2026-10-03-v13 · HU-33 inalterabilidad verificada: pruebas de que nadie puede editar ni borrar eventos, bitácora ni selfies; sin cambios visibles.
 // asis-2026-10-04-v14 · HU-14 mis horas: horas del día y de la semana (vista oficial del servidor + checadas aún en el teléfono).
 // asis-2026-10-04-v15 · HU-12b jornada de lunes a viernes: los días sin horario (sábado) son "actividad fuera de horario".
+// asis-2026-10-04-v16 · HU-24 visitas a parques: llegada (GPS o elegida del catálogo), salida, cambio de parque y recorrido del día en Visitas.
 
-const CACHE_VERSION = 'asis-2026-10-04-v15';
+const CACHE_VERSION = 'asis-2026-10-04-v16';
 
 const CASCARON = [
   './',

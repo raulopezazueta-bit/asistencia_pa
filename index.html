@@ -83,6 +83,15 @@
             <li class="lista__fila"><span>Hora del teléfono</span><span class="lista__valor mono" id="checada-hora">—</span></li>
           </ul>
         </article>
+        <div class="vista" id="checada-sitio-elegir" hidden>
+          <button class="boton boton--ancho" type="button" id="checada-otro-parque">Elegir otro parque</button>
+          <div class="vista" id="checada-buscador" hidden>
+            <label class="campo"><span class="solo-lector">Buscar parque por nombre o clave</span>
+              <input class="campo__entrada" id="checada-buscar" type="search" placeholder="Buscar parque por nombre o clave" autocomplete="off">
+            </label>
+            <ul class="lista-opciones" id="checada-resultados"></ul>
+          </div>
+        </div>
         <div class="aviso" id="checada-reloj" role="alert" hidden></div>
         <div class="aviso" id="checada-zona" role="status" hidden></div>
         <label class="campo" id="checada-justificacion-campo" hidden>
@@ -170,7 +179,12 @@
 
       <!-- Visitas -->
       <section class="vista" id="vista-visitas" data-vista="visitas" hidden>
-        <article class="tarjeta"><p class="secundario">Aquí verás tu recorrido del día por parque.</p></article>
+        <article class="tarjeta" aria-labelledby="recorrido-titulo">
+          <p class="tarjeta__etiqueta" id="recorrido-titulo">Recorrido de hoy</p>
+          <ul class="lista" id="recorrido-lista"></ul>
+          <p class="secundario chico" id="recorrido-nota"></p>
+        </article>
+        <div class="acciones-secundarias" id="visitas-acciones"></div>
 
         <article class="tarjeta catalogo" aria-labelledby="catalogo-titulo">
           <div class="catalogo__cabecera">

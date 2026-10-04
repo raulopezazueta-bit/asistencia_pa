@@ -8,7 +8,7 @@ import * as cola from './cola.js';
 import { guardarMeta } from './almacen.js';
 import * as reloj from './reloj.js';
 import * as horas from './horas.js';
-import { calcularEstado, resumenDelDia, formatoHoras } from './reglas.js';
+import { calcularEstado, resumenDelDia, formatoHoras, recorridoDelDia } from './reglas.js';
 
 const VISTAS = ['inicio', 'visitas', 'historial', 'perfil'];
 const TITULOS = { inicio: 'Hola', visitas: 'Visitas a parques', historial: 'Historial', perfil: 'Perfil' };
@@ -231,8 +231,8 @@ function filaJornada(f) {
   return li;
 }
 
-// Activas: bloques (HU-17) y pausas (HU-13). Las visitas a parques llegan con HU-24.
-const ACCIONES_ACTIVAS = ['inicio_bloque', 'fin_bloque', 'inicio_pausa', 'fin_pausa'];
+// Activas: bloques (HU-17), pausas (HU-13) y visitas a parques (HU-24).
+const ACCIONES_ACTIVAS = ['inicio_bloque', 'fin_bloque', 'inicio_pausa', 'fin_pausa', 'llegada_sitio', 'salida_sitio', 'cambio_sitio'];
 
 async function iniciarChecada(accion, bloque) {
   if (!estado.dia || estado.checando) return;
@@ -347,6 +347,7 @@ async function pintarJornada() {
       if (!b.disabled) b.addEventListener('click', () => iniciarChecada(s.accion, s.bloque));
       return b;
     }));
+    pintarVisitas(e, eventos);
     await pintarEnvio();
     const textoReloj = await reloj.aviso(config);
     $('aviso-reloj').hidden = !textoReloj;
@@ -357,6 +358,53 @@ async function pintarJornada() {
     if (repintar) { repintar = false; pintarJornada(); }
   });
   return pintando;
+}
+
+// ---------- Visitas a parques (HU-24) ----------
+function pintarVisitas(e, eventos) {
+  const recorrido = recorridoDelDia(eventos);
+  $('recorrido-lista').replaceChildren(...recorrido.map((v) => {
+    const li = document.createElement('li');
+    li.className = 'lista__fila';
+    li.dataset.visita = v.sitioId || '';
+    const izq = document.createElement('div');
+    const t = document.createElement('p');
+    t.className = 'lista__titulo';
+    t.textContent = v.nombre;
+    const d = document.createElement('p');
+    d.className = 'lista__detalle mono';
+    d.textContent = `${horaLocal(v.llegada)} – ${v.salida ? horaLocal(v.salida) : 'en curso'}${v.clave ? ` · ${v.clave}` : ''}`;
+    izq.append(t, d);
+    const chip = document.createElement('span');
+    chip.className = `chip ${v.enviado ? 'chip--ok' : 'chip--aviso'}`;
+    chip.textContent = v.enviado ? 'Enviado' : 'En cola';
+    li.append(izq, chip);
+    return li;
+  }));
+  const enCampo = e.bloqueAbierto === 'campo';
+  const nota = !enCampo
+    ? 'Las visitas a parques se registran durante el bloque de campo.'
+    : e.estado === 'en_pausa' ? 'Estás en pausa: regresa de la pausa para registrar visitas.'
+      : recorrido.length ? '' : 'Aún no registras llegadas a parques hoy.';
+  $('recorrido-nota').textContent = nota;
+  $('recorrido-nota').hidden = !nota;
+  const acciones = [];
+  if (enCampo && e.estado === 'en_bloque') {
+    acciones.push(e.enSitio
+      ? { accion: 'cambio_sitio', texto: '+ Registrar llegada a otro parque', clase: 'boton boton--ancho' }
+      : { accion: 'llegada_sitio', texto: '+ Registrar llegada a parque', clase: 'boton boton--ancho' });
+    if (e.enSitio) acciones.push({ accion: 'salida_sitio', texto: `Salir de ${e.enSitio.nombre}`, clase: 'boton boton--ancho' });
+    acciones.push({ accion: 'fin_bloque', bloque: 'campo', texto: 'Terminar bloque de campo', clase: 'boton boton--tierra boton--ancho' });
+  }
+  $('visitas-acciones').replaceChildren(...acciones.map((a) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = a.clase;
+    b.dataset.accion = a.accion;
+    b.textContent = a.texto;
+    b.addEventListener('click', () => iniciarChecada(a.accion, a.bloque));
+    return b;
+  }));
 }
 
 // ---------- Mis horas: semana (HU-14) ----------

@@ -273,4 +273,24 @@ export function resumenDelDia({ eventos, horario = [], ahora = new Date(), zona 
   return { filas, minutosEfectivos, minutosProgramados, calificacion };
 }
 
+// ---------- Recorrido de visitas a parques (HU-24) ----------
+// [{ sitioId, nombre, clave, llegada, salida, enviado }] en orden; una visita abierta tiene salida = null.
+// El fin del bloque de campo cierra la visita abierta (la app registra la salida antes, pero por si acaso).
+export function recorridoDelDia(eventos) {
+  const visitas = [];
+  let abierta = null;
+  for (const e of [...(eventos || [])].sort((a, b) => new Date(a.hora) - new Date(b.hora))) {
+    if (e.tipo === 'llegada_sitio') {
+      if (abierta) abierta.salida = abierta.salida ?? e.hora;
+      abierta = { sitioId: e.sitioId ?? null, nombre: e.sitioNombre || 'Parque', clave: e.sitioClave || null, llegada: e.hora, salida: null, enviado: e.enviado !== false };
+      visitas.push(abierta);
+    } else if ((e.tipo === 'salida_sitio' || e.tipo === 'fin_bloque') && abierta) {
+      abierta.salida = e.hora;
+      abierta.enviado = abierta.enviado && e.enviado !== false;
+      abierta = null;
+    }
+  }
+  return visitas;
+}
+
 export const formatoHoras = hhmm;

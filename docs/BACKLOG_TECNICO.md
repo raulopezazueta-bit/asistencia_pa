@@ -49,7 +49,7 @@ HU-15 pasa al Sprint 4.
 | Estado | ID | Historia | Criterios de aceptación |
 |---|---|---|---|
 | ☑ v15 | HU-12b | Jornada de lunes a viernes y sábados ocasionales | Día sin horario = "actividad fuera de horario" (elige tipo al checar; al cerrarla, jornada cerrada con opción de otra); sin alerta de olvido ni retardo; "Fuera de horario" en Mis horas; `permitir_dias_sin_horario` configurable |
-| ☐ | HU-24 | Visitas a parques | Llegada/salida por parque; llegar a otro parque cierra el anterior; pantalla Visitas §7.3 |
+| ☑ v16 | HU-24 | Visitas a parques | Llegada/salida por parque; llegar a otro parque cierra el anterior; pantalla Visitas §7.3 |
 | ☐ | HU-27 | Panel de coordinación | `panel.html` §8 (tarjetas + tabla del día) solo para `coordinador`/`admin` |
 | ☐ | HU-28/29 | Incidencias | Asesor solicita con motivo (≥ 5 caracteres); coordinación aprueba/rechaza; el evento corregido aparece con `origen = 'incidencia'` |
 | ☐ | HU-23 | Bandeja de revisión | Lista de eventos `revisar` con motivos y selfie (URL firmada) |

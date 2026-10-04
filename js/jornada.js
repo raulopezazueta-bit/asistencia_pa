@@ -53,15 +53,16 @@ export async function cargarHoy(perfil, ahora = new Date()) {
     horarios(perfil), eventosServidor(perfil, rango), eventosLocales(perfil, rango), sitios.todos(perfil.organizacionId)
   ]);
   const nombreSitio = new Map(catalogo.map((s) => [s.id, s.nombre]));
+  const claveSitio = new Map(catalogo.map((s) => [s.id, s.clave]));
   const porId = new Map();
   for (const e of servidor.filas) {
     porId.set(e.id, { id: e.id, tipo: e.tipo, bloque: e.bloque, modalidad: e.modalidad, hora: e.hora_efectiva,
-      sitioId: e.sitio_id, sitioNombre: nombreSitio.get(e.sitio_id), estadoRevision: e.estado_revision, enviado: true });
+      sitioId: e.sitio_id, sitioNombre: nombreSitio.get(e.sitio_id), sitioClave: claveSitio.get(e.sitio_id), estadoRevision: e.estado_revision, enviado: true });
   }
   for (const e of locales) {
     if (porId.has(e.id)) continue;   // ya llegó al servidor: manda la hora del servidor
     porId.set(e.id, { id: e.id, tipo: e.tipo, bloque: e.bloque, modalidad: e.modalidad, hora: e.hora_dispositivo,
-      sitioId: e.sitio_id, sitioNombre: nombreSitio.get(e.sitio_id), estadoRevision: null, enviado: false });
+      sitioId: e.sitio_id, sitioNombre: nombreSitio.get(e.sitio_id), sitioClave: claveSitio.get(e.sitio_id), estadoRevision: null, enviado: false });
   }
   return { horario: horarioDelDia(filasHorario, ahora, zona), eventos: [...porId.values()], sinConexion: servidor.sinConexion };
 }
