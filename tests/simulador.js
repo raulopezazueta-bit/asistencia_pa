@@ -3,6 +3,7 @@
 // Imita las reglas RLS relevantes: cada usuario solo ve sus filas de `miembros`.
 
 import { readFileSync } from 'node:fs';
+import { atender as atenderAltaPersona } from '../supabase/functions/alta-persona/logica.js';
 import { sitioParaPunto, evaluarSitio } from '../js/geo.js';
 import { partesLocales, rangoDelDia, resumenDelDia } from '../js/reglas.js';
 
@@ -28,11 +29,12 @@ export const USUARIOS = {
       { id: 'aaaaaaaa-0000-0000-0000-000000000011', org: 'pa', nombre_completo: 'Persona Compartida', rol: 'asesor', activo: true },
       { id: 'aaaaaaaa-0000-0000-0000-000000000012', org: 'demo', nombre_completo: 'Persona Compartida', rol: 'coordinador', activo: true }
     ] },
+  admin: { id: '00000000-0000-0000-0000-000000000020', email: 'administracion@prueba.test', clave: 'Prueba123',
+    miembros: [{ id: 'aaaaaaaa-0000-0000-0000-000000000020', org: 'pa', nombre_completo: 'Administración de Prueba', rol: 'admin', activo: true }] },
   demo: { id: '00000000-0000-0000-0000-00000000000c', email: 'demo@prueba.test', clave: 'Prueba123',
     miembros: [{ id: 'aaaaaaaa-0000-0000-0000-000000000003', org: 'demo', nombre_completo: 'Asesor Demo', rol: 'asesor', activo: true }] }
 };
 
-const MIEMBROS = Object.values(USUARIOS).flatMap((u) => u.miembros);
 
 // Incidencia ya guardada en el servidor (para precargar el simulador). hora: 'AAAA-MM-DDTHH:MM' en hora de Culiacán.
 export function incidenciaServidor(tipo, extra = {}) {
@@ -79,7 +81,7 @@ function token(usuario, segundos = 3600, horaServidor = null) {
 }
 function usuarioAuth(u) {
   return { id: u.id, aud: 'authenticated', role: 'authenticated', email: u.email, email_confirmed_at: '2026-10-01T00:00:00Z',
-    app_metadata: { provider: 'email' }, user_metadata: {}, created_at: '2026-10-01T00:00:00Z' };
+    app_metadata: { provider: 'email' }, user_metadata: { ...(u.metadata || {}) }, created_at: '2026-10-01T00:00:00Z' };
 }
 // Tokens de 30 días: algunas pruebas fijan el reloj de la página en otra fecha (page.clock).
 const VIGENCIA = 30 * 24 * 3600;
@@ -87,13 +89,13 @@ function sesion(u, horaServidor = null) {
   return { access_token: token(u, VIGENCIA, horaServidor), token_type: 'bearer', expires_in: VIGENCIA, expires_at: Math.floor(Date.now() / 1000) + VIGENCIA,
     refresh_token: `refresco-${u.id}`, user: usuarioAuth(u) };
 }
-function usuarioDeToken(req) {
+function usuarioDeToken(req, cuentas = Object.values(USUARIOS)) {
   const auth = req.headers()['authorization'] || '';
   const partes = auth.replace(/^Bearer /i, '').split('.');
   if (partes.length !== 3) return null;
   try {
     const sub = JSON.parse(Buffer.from(partes[1], 'base64url').toString()).sub;
-    return Object.values(USUARIOS).find((u) => u.id === sub) || null;
+    return cuentas.find((u) => u.id === sub) || null;
   } catch { return null; }
 }
 
@@ -131,7 +133,44 @@ export function eventoServidor(tipo, hora, extra = {}) {
 // incidencias: filas iniciales de la tabla incidencias (ver incidenciaServidor). revisiones: filas iniciales de revisiones.
 export async function simularSupabase(page, { sitiosPA = 782, sitiosDemo = 3, eventos = [], configPA = {}, rechazarEventos = false, horaServidor = null, horarioAsesor = HORARIO_ASESOR, incidencias = [], revisiones = [] } = {}) {
   const registro = [];
-  const estado = { sinRed: false, recibidos: [], selfies: [], incidencias, revisiones, firmadas: [] };
+  // Cuentas y horarios propios de este simulador (las pruebas pueden crear, bloquear y cambiar sin afectar a otras)
+  const cuentas = Object.values(USUARIOS).map((u) => ({ ...u, miembros: u.miembros.map((m) => ({ ...m })) }));
+  const miembrosSim = () => cuentas.flatMap((u) => u.miembros.map((m) => ({ ...m, user_id: u.id })));
+  const horarios = horarioAsesor.map((h, i) => ({ id: `hhhhhhhh-0000-0000-0000-${String(i).padStart(12, '0')}`, organizacion_id: ORGS.pa.id,
+    miembro_id: 'aaaaaaaa-0000-0000-0000-000000000001', ...h }));
+  const estado = { sinRed: false, recibidos: [], selfies: [], incidencias, revisiones, firmadas: [], cuentas, horarios, bitacora: [] };
+  const deToken = (req) => usuarioDeToken(req, cuentas);
+  const orgDe = (clave) => ORGS[clave].id;
+  const claveOrg = (id) => Object.keys(ORGS).find((k) => ORGS[k].id === id);
+  const filaMiembro = (m) => m && ({ id: m.id, organizacion_id: orgDe(m.org), user_id: m.user_id, nombre_completo: m.nombre_completo,
+    num_empleado: m.num_empleado ?? null, rol: m.rol, activo: m.activo, fecha_alta: m.fecha_alta ?? '2026-10-01', fecha_baja: m.fecha_baja ?? null });
+  // Igual que index.ts de la función alta-persona, pero sobre los datos del simulador
+  const bdAlta = {
+    miembroPorUsuario: async (uid, org) => filaMiembro(miembrosSim().find((m) => m.user_id === uid && orgDe(m.org) === org)),
+    miembro: async (id) => filaMiembro(miembrosSim().find((m) => m.id === id)),
+    miembrosDeOrganizacion: async (org) => miembrosSim().filter((m) => orgDe(m.org) === org).map(filaMiembro),
+    numEmpleadoOcupado: async (org, num) => miembrosSim().some((m) => orgDe(m.org) === org && m.num_empleado === num),
+    otraAltaActiva: async (uid, excepto) => miembrosSim().some((m) => m.user_id === uid && m.activo && m.id !== excepto),
+    insertarMiembro: async (f) => {
+      const cuenta = cuentas.find((u) => u.id === f.user_id);
+      const m = { id: `aaaaaaaa-1111-0000-0000-${String(miembrosSim().length).padStart(12, '0')}`, org: claveOrg(f.organizacion_id),
+        nombre_completo: f.nombre_completo, num_empleado: f.num_empleado, rol: f.rol, activo: true, fecha_alta: '2026-10-05' };
+      cuenta.miembros.push(m);
+      return filaMiembro({ ...m, user_id: cuenta.id });
+    },
+    actualizarMiembro: async (id, cambios) => { const m = cuentas.flatMap((u) => u.miembros).find((x) => x.id === id); Object.assign(m, cambios); },
+    hoy: async () => '2026-10-05',
+    usuarios: async (ids) => cuentas.filter((u) => ids.includes(u.id)).map((u) => ({ id: u.id, correo: u.email, ultimo_acceso: u.ultimoAcceso ?? null, bloqueada: !!u.bloqueada, debe_cambiar: !!u.metadata?.debe_cambiar_contrasena })),
+    usuarioPorCorreo: async (correo) => { const u = cuentas.find((x) => x.email === correo); return u ? { id: u.id } : null; },
+    crearUsuario: async ({ correo, contrasena, metadata }) => {
+      const u = { id: `00000000-1111-0000-0000-${String(cuentas.length).padStart(12, '0')}`, email: correo, clave: contrasena, metadata: { ...metadata }, miembros: [] };
+      cuentas.push(u);
+      return { id: u.id };
+    },
+    actualizarUsuario: async (uid, { contrasena, metadata }) => { const u = cuentas.find((x) => x.id === uid); u.clave = contrasena; u.metadata = { ...u.metadata, ...metadata }; },
+    bloquearUsuario: async (uid, bloquear) => { cuentas.find((x) => x.id === uid).bloqueada = bloquear; },
+    registrar: async (fila) => { estado.bitacora.push(fila); }
+  };
   // Domicilio ficticio del asesor de prueba: RLS solo se lo muestra a él (y a coordinación).
   const domicilio = { ...sitiosFicticios('pa', 1, 'D')[0], id: 'dddddddd-dddd-0000-0000-000000000001', clave_externa: null,
     id_oficial: null, nombre: 'Domicilio ficticio', tipo: 'domicilio', miembro_id: 'aaaaaaaa-0000-0000-0000-000000000001', perimetro_geojson: null };
@@ -147,25 +186,44 @@ export async function simularSupabase(page, { sitiosPA = 782, sitiosDemo = 3, ev
     if (url.pathname === '/auth/v1/token') {
       const datos = req.postDataJSON() || {};
       if (url.searchParams.get('grant_type') === 'password') {
-        const u = Object.values(USUARIOS).find((x) => x.email === String(datos.email).toLowerCase() && x.clave === datos.password);
+        const u = cuentas.find((x) => x.email === String(datos.email).toLowerCase() && x.clave === datos.password);
         if (!u) return json(route, 400, { code: 'invalid_credentials', error_code: 'invalid_credentials', msg: 'Invalid login credentials' });
+        if (u.bloqueada) return json(route, 400, { code: 'user_banned', error_code: 'user_banned', msg: 'User is banned' });
+        u.ultimoAcceso = new Date().toISOString();
         return json(route, 200, sesion(u, horaServidor));
       }
       if (url.searchParams.get('grant_type') === 'refresh_token') {
-        const u = Object.values(USUARIOS).find((x) => `refresco-${x.id}` === datos.refresh_token);
+        const u = cuentas.find((x) => `refresco-${x.id}` === datos.refresh_token && !x.bloqueada);
         if (!u) return json(route, 400, { code: 'refresh_token_not_found', msg: 'Invalid Refresh Token' });
         return json(route, 200, sesion(u, horaServidor));
       }
     }
     if (url.pathname === '/auth/v1/logout') return route.fulfill({ status: 204, headers: CORS });
     if (url.pathname === '/auth/v1/user') {
-      const u = usuarioDeToken(req);
-      return u ? json(route, 200, usuarioAuth(u)) : json(route, 401, { code: 'bad_jwt', msg: 'invalid JWT' });
+      const u = deToken(req);
+      if (!u) return json(route, 401, { code: 'bad_jwt', msg: 'invalid JWT' });
+      if (req.method() === 'PUT') {   // updateUser: la propia persona cambia contraseña y datos
+        const datos = req.postDataJSON() || {};
+        if (datos.password !== undefined) {
+          if (String(datos.password).length < 6) return json(route, 422, { code: 'weak_password', msg: 'Password should be at least 6 characters.' });
+          if (datos.password === u.clave) return json(route, 422, { code: 'same_password', msg: 'New password should be different from the old password.' });
+          u.clave = datos.password;
+        }
+        if (datos.data) u.metadata = { ...(u.metadata || {}), ...datos.data };
+      }
+      return json(route, 200, usuarioAuth(u));
+    }
+
+    // ----- Función alta-persona (HU-09): la misma lógica que corre en Supabase -----
+    if (url.pathname === '/functions/v1/alta-persona' && req.method() === 'POST') {
+      const u = deToken(req);
+      const r = await atenderAltaPersona({ usuarioId: u?.id ?? null, solicitud: req.postDataJSON(), bd: bdAlta });
+      return json(route, r.status, r.cuerpo);
     }
 
     // ----- PostgREST -----
     if (url.pathname === '/rest/v1/miembros' && req.method() === 'GET') {
-      const u = usuarioDeToken(req);
+      const u = deToken(req);
       if (!u) return json(route, 401, { code: 'PGRST301', message: 'JWT expired' });
       const filtroUser = url.searchParams.get('user_id');
       const filtroActivo = url.searchParams.get('activo');
@@ -173,11 +231,11 @@ export async function simularSupabase(page, { sitiosPA = 782, sitiosDemo = 3, ev
       if (filtroOrg && !filtroUser) {   // panel: coordinación ve a todas las personas de su organización (RLS mie_ver)
         const org = Object.keys(ORGS).find((k) => `eq.${ORGS[k].id}` === filtroOrg);
         const coord = u.miembros.some((m) => m.activo && m.rol !== 'asesor' && m.org === org);
-        const filas = coord ? MIEMBROS.filter((m) => m.org === org && m.activo).map((m) => ({ id: m.id, nombre_completo: m.nombre_completo, num_empleado: null, rol: m.rol })) : [];
-        return json(route, 200, filas.sort((a, b) => a.nombre_completo.localeCompare(b.nombre_completo)));
+        const filas = coord ? miembrosSim().filter((m) => m.org === org && (!filtroActivo || `eq.${m.activo}` === filtroActivo)).map(filaMiembro) : [];
+        return json(route, 200, filas.sort((a, b) => Number(b.activo) - Number(a.activo) || a.nombre_completo.localeCompare(b.nombre_completo)));
       }
       let filas = u.miembros.map((m) => ({
-        id: m.id, organizacion_id: ORGS[m.org].id, user_id: u.id, nombre_completo: m.nombre_completo, num_empleado: null,
+        id: m.id, organizacion_id: ORGS[m.org].id, user_id: u.id, nombre_completo: m.nombre_completo, num_empleado: m.num_empleado ?? null,
         rol: m.rol, activo: m.activo,
         organizaciones: { ...ORGS[m.org], config: { ...ORGS[m.org].config, ...(m.org === 'pa' ? configPA : {}) } }
       }));
@@ -186,21 +244,50 @@ export async function simularSupabase(page, { sitiosPA = 782, sitiosDemo = 3, ev
       return json(route, 200, filas);
     }
 
-    if (url.pathname === '/rest/v1/horarios' && req.method() === 'GET') {
-      const u = usuarioDeToken(req);
+    // Cambio de rol (RLS mie_editar: solo administración de la organización)
+    if (url.pathname === '/rest/v1/miembros' && req.method() === 'PATCH') {
+      const u = deToken(req);
       if (!u) return json(route, 401, { code: 'PGRST301', message: 'JWT expired' });
-      const ASESOR = 'aaaaaaaa-0000-0000-0000-000000000001';
-      if (url.searchParams.get('organizacion_id') === `eq.${ORGS.pa.id}`) {   // panel: horarios de la organización
-        const coord = u.miembros.some((m) => m.activo && m.rol !== 'asesor' && m.org === 'pa');
-        return json(route, 200, coord ? horarioAsesor.map((h) => ({ miembro_id: ASESOR, ...h })) : []);
+      const id = url.searchParams.get('id')?.slice(3);
+      const m = cuentas.flatMap((c) => c.miembros).find((x) => x.id === id);
+      const admin = m && u.miembros.some((x) => x.activo && x.rol === 'admin' && x.org === m.org);
+      if (!admin) return json(route, 200, []);
+      Object.assign(m, req.postDataJSON());
+      return json(route, 200, [{ id: m.id, rol: m.rol }]);
+    }
+
+    // Horarios (RLS hor_ver / hor_admin): cada quien los suyos; coordinación los de su organización; solo administración cambia
+    if (url.pathname === '/rest/v1/horarios') {
+      const u = deToken(req);
+      if (!u) return json(route, 401, { code: 'PGRST301', message: 'JWT expired' });
+      const orgsCoord = u.miembros.filter((m) => m.activo && m.rol !== 'asesor').map((m) => orgDe(m.org));
+      const orgsAdmin = u.miembros.filter((m) => m.activo && m.rol === 'admin').map((m) => orgDe(m.org));
+      const mios = u.miembros.map((m) => m.id);
+      if (req.method() === 'GET') {
+        let filas = horarios.filter((h) => mios.includes(h.miembro_id) || orgsCoord.includes(h.organizacion_id));
+        const mid = url.searchParams.get('miembro_id'), org = url.searchParams.get('organizacion_id');
+        if (mid) filas = filas.filter((h) => `eq.${h.miembro_id}` === mid);
+        if (org) filas = filas.filter((h) => `eq.${h.organizacion_id}` === org);
+        return json(route, 200, filas.map((h) => ({ ...h })));
       }
-      const filas = u === USUARIOS.asesor && url.searchParams.get('miembro_id') === `eq.${ASESOR}` ? horarioAsesor : [];
-      return json(route, 200, filas);
+      if (req.method() === 'PATCH') {
+        const mid = url.searchParams.get('miembro_id')?.slice(3);
+        const desde = /vigente_hasta\.gte\.([\d-]+)/.exec(url.searchParams.get('or') || '')?.[1];
+        const cambios = req.postDataJSON();
+        for (const h of horarios.filter((x) => x.miembro_id === mid && orgsAdmin.includes(x.organizacion_id) && (!x.vigente_hasta || (desde && x.vigente_hasta >= desde)))) Object.assign(h, cambios);
+        return route.fulfill({ status: 204, headers: CORS });
+      }
+      if (req.method() === 'POST') {
+        const filas = [].concat(req.postDataJSON());
+        if (filas.some((f) => !orgsAdmin.includes(f.organizacion_id))) return json(route, 403, { code: '42501', message: 'new row violates row-level security policy for table "horarios"' });
+        for (const f of filas) horarios.push({ id: `hhhhhhhh-1111-0000-0000-${String(horarios.length).padStart(12, '0')}`, ...f });
+        return route.fulfill({ status: 201, headers: CORS });
+      }
     }
 
     // Storage: subida de selfies al bucket privado (imita la política selfies_subir y el límite de 150 KB).
     if (url.pathname.startsWith('/storage/v1/object/selfies/') && req.method() === 'POST') {
-      const u = usuarioDeToken(req);
+      const u = deToken(req);
       if (!u) return json(route, 400, { statusCode: '403', error: 'Unauthorized', message: 'invalid JWT' });
       const ruta = decodeURIComponent(url.pathname.slice('/storage/v1/object/selfies/'.length));
       const [org, miembro] = ruta.split('/');
@@ -236,7 +323,7 @@ export async function simularSupabase(page, { sitiosPA = 782, sitiosDemo = 3, ev
     // Inserción de eventos (upsert con ignoreDuplicates). Imita al trigger preparar_evento de forma simplificada;
     // la comparación exacta con PostGIS se prueba contra la API local (tests/hu17_servidor.spec.js).
     if (url.pathname === '/rest/v1/eventos_jornada' && req.method() === 'POST') {
-      const u = usuarioDeToken(req);
+      const u = deToken(req);
       if (!u) return json(route, 401, { code: 'PGRST301', message: 'JWT expired' });
       if (rechazarEventos) return json(route, 400, { code: '23514', message: 'new row violates check constraint' });
       const cuerpo = req.postDataJSON();
@@ -277,7 +364,7 @@ export async function simularSupabase(page, { sitiosPA = 782, sitiosDemo = 3, ev
     }
 
     if (url.pathname === '/rest/v1/eventos_jornada' && req.method() === 'GET') {
-      const u = usuarioDeToken(req);
+      const u = deToken(req);
       if (!u) return json(route, 401, { code: 'PGRST301', message: 'JWT expired' });
       const mios = u.miembros.map((m) => m.id);
       const desde = url.searchParams.getAll('hora_efectiva').find((x) => x.startsWith('gte.'))?.slice(4);
@@ -294,7 +381,7 @@ export async function simularSupabase(page, { sitiosPA = 782, sitiosDemo = 3, ev
       const desc = /hora_efectiva\.desc/.test(url.searchParams.get('order') || '');
       filas.sort((a, b) => (desc ? -1 : 1) * (new Date(a.hora_efectiva) - new Date(b.hora_efectiva)));
       if (/persona:/.test(url.searchParams.get('select') || '')) {
-        filas = filas.map((e) => ({ ...e, persona: { nombre_completo: MIEMBROS.find((m) => m.id === e.miembro_id)?.nombre_completo } }));
+        filas = filas.map((e) => ({ ...e, persona: { nombre_completo: miembrosSim().find((m) => m.id === e.miembro_id)?.nombre_completo } }));
       }
       return json(route, 200, filas);
     }
@@ -302,7 +389,7 @@ export async function simularSupabase(page, { sitiosPA = 782, sitiosDemo = 3, ev
     // Vista v_jornada_diaria (aproximación con las reglas del cliente: solo bloques cerrados suman).
     // La vista real se prueba contra la API local (tests/hu14_horas.spec.js).
     if (url.pathname === '/rest/v1/v_jornada_diaria' && req.method() === 'GET') {
-      const u = usuarioDeToken(req);
+      const u = deToken(req);
       if (!u) return json(route, 401, { code: 'PGRST301', message: 'JWT expired' });
       const zona = 'America/Mazatlan';
       const miembro = url.searchParams.get('miembro_id')?.slice(3);
@@ -347,7 +434,7 @@ export async function simularSupabase(page, { sitiosPA = 782, sitiosDemo = 3, ev
     // Incidencias (HU-28/29): imita RLS (cada quien las suyas; coordinación las de su organización)
     // y los triggers controlar_incidencia, validar_incidencia y aplicar_incidencia_aprobada (migraciones 0001 y 0003).
     if (url.pathname === '/rest/v1/incidencias') {
-      const u = usuarioDeToken(req);
+      const u = deToken(req);
       if (!u) return json(route, 401, { code: 'PGRST301', message: 'JWT expired' });
       const mios = u.miembros.filter((m) => m.activo).map((m) => m.id);
       const orgsCoord = u.miembros.filter((m) => m.activo && m.rol !== 'asesor').map((m) => ORGS[m.org].id);
@@ -365,7 +452,7 @@ export async function simularSupabase(page, { sitiosPA = 782, sitiosDemo = 3, ev
         if (desde?.startsWith('gte.')) filas = filas.filter((i) => i.creada_en >= desde.slice(4));
         const asc = /creada_en\.asc/.test(url.searchParams.get('order') || '');
         filas = [...filas].sort((a, b) => (asc ? 1 : -1) * a.creada_en.localeCompare(b.creada_en));
-        const nombre = (id) => (id ? { nombre_completo: MIEMBROS.find((m) => m.id === id)?.nombre_completo } : null);
+        const nombre = (id) => (id ? { nombre_completo: miembrosSim().find((m) => m.id === id)?.nombre_completo } : null);
         const conVinculos = /persona:/.test(url.searchParams.get('select') || '');
         return json(route, 200, filas.map((i) => conVinculos ? { ...i, persona: nombre(i.miembro_id), resolutor: nombre(i.resuelta_por),
           original: i.evento_original_id ? (({ tipo, bloque, hora_efectiva, motivos_revision }) => ({ tipo, bloque, hora_efectiva, motivos_revision }))(eventos.find((e) => e.id === i.evento_original_id) || {}) : null } : i));
@@ -407,7 +494,7 @@ export async function simularSupabase(page, { sitiosPA = 782, sitiosDemo = 3, ev
 
     // Revisiones (HU-23): imita RLS y el trigger preparar_revision (migración 0004)
     if (url.pathname === '/rest/v1/revisiones') {
-      const u = usuarioDeToken(req);
+      const u = deToken(req);
       if (!u) return json(route, 401, { code: 'PGRST301', message: 'JWT expired' });
       const orgsCoord = u.miembros.filter((m) => m.activo && m.rol !== 'asesor').map((m) => ORGS[m.org].id);
       if (req.method() === 'GET') {
@@ -416,7 +503,7 @@ export async function simularSupabase(page, { sitiosPA = 782, sitiosDemo = 3, ev
         const propias = (r) => mios.includes(eventos.find((e) => e.id === r.evento_id)?.miembro_id);
         const ids = /^in\.\((.*)\)$/.exec(url.searchParams.get('evento_id') || '')?.[1].split(',');
         const filas = revisiones.filter((r) => (orgsCoord.includes(r.organizacion_id) || propias(r)) && (!org || r.organizacion_id === org) && (!ids || ids.includes(r.evento_id)))
-          .map((r) => ({ ...r, revisor: { nombre_completo: MIEMBROS.find((m) => m.id === r.revisado_por)?.nombre_completo } }));
+          .map((r) => ({ ...r, revisor: { nombre_completo: miembrosSim().find((m) => m.id === r.revisado_por)?.nombre_completo } }));
         return json(route, 200, filas);
       }
       if (req.method() === 'POST') {
@@ -438,7 +525,7 @@ export async function simularSupabase(page, { sitiosPA = 782, sitiosDemo = 3, ev
 
     // Enlace temporal de selfie (createSignedUrl) y la imagen que entrega
     if (url.pathname.startsWith('/storage/v1/object/sign/selfies/')) {
-      const u = usuarioDeToken(req);
+      const u = deToken(req);
       if (req.method() === 'POST') {
         if (!u) return json(route, 400, { statusCode: '403', message: 'invalid JWT' });
         estado.firmadas.push(decodeURIComponent(url.pathname.slice('/storage/v1/object/sign/selfies/'.length)));
@@ -448,7 +535,7 @@ export async function simularSupabase(page, { sitiosPA = 782, sitiosDemo = 3, ev
     }
 
     if (url.pathname === '/rest/v1/v_sitios_app' && req.method() === 'GET') {
-      const u = usuarioDeToken(req);
+      const u = deToken(req);
       if (!u) return json(route, 401, { code: 'PGRST301', message: 'JWT expired' });
       const misOrgs = u.miembros.filter((m) => m.activo).map((m) => ORGS[m.org].id);
       const misMiembros = u.miembros.map((m) => m.id);

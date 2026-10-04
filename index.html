@@ -57,6 +57,20 @@
       <button class="boton boton--ancho" type="button" id="organizacion-salir">Cerrar sesión</button>
     </section>
 
+    <!-- Cambiar contraseña (HU-09): obligatoria si entró con una contraseña temporal -->
+    <section class="pantalla-centrada" id="pantalla-contrasena" hidden>
+      <h1 class="encabezado__titulo">Cambia tu contraseña</h1>
+      <p class="secundario centrado" id="contrasena-explicacion">Elige una contraseña nueva de al menos 8 caracteres.</p>
+      <form class="tarjeta formulario" id="form-contrasena" novalidate>
+        <label class="campo"><span class="campo__etiqueta">Contraseña nueva</span><input class="campo__entrada" id="contrasena-nueva" type="password" autocomplete="new-password"></label>
+        <label class="campo"><span class="campo__etiqueta">Repítela</span><input class="campo__entrada" id="contrasena-repetir" type="password" autocomplete="new-password"></label>
+        <p class="aviso aviso--critico" id="contrasena-error" role="alert" hidden></p>
+        <button class="boton boton--lleno boton--ancho" type="submit" id="contrasena-guardar">Guardar contraseña</button>
+        <button class="boton boton--ancho" type="button" id="contrasena-cancelar">Cancelar</button>
+      </form>
+      <button class="boton boton--ancho" type="button" id="contrasena-salir">Cerrar sesión</button>
+    </section>
+
     <!-- Checada (HU-17) -->
     <section class="pantalla-checada" id="pantalla-checada" hidden>
       <header class="encabezado">
@@ -320,6 +334,7 @@
         </article>
         <button class="boton boton--ancho" type="button" id="perfil-solicitar" data-accion="solicitar_correccion">Solicitar corrección</button>
         <a class="boton boton--ancho" id="perfil-panel" href="panel.html" hidden>Abrir panel de coordinación</a>
+        <button class="boton boton--ancho" type="button" id="perfil-contrasena">Cambiar contraseña</button>
         <button class="boton boton--ancho" type="button" id="perfil-cambiar-org" hidden>Cambiar de organización</button>
         <button class="boton boton--tierra boton--ancho" type="button" id="perfil-salir">Cerrar sesión</button>
       </section>

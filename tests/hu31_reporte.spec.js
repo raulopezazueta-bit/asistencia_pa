@@ -69,7 +69,7 @@ test('panel: el reporte para la autoridad se abre con el periodo y la persona; s
   await page.goto('panel.html');
   await expect(page.locator('#reporte-desde')).toHaveValue('2026-10-01');
   await expect(page.locator('#reporte-hasta')).toHaveValue(DIA);
-  await expect(page.locator('#reporte-persona option')).toHaveCount(4);   // Todas + 3 personas activas de PA
+  await expect(page.locator('#reporte-persona option')).toHaveCount(5);   // Todas + 4 personas activas de PA (incluye administración)
   await page.locator('#reporte-desde').fill('2026-10-06');
   await page.locator('#reporte-ver').click();
   await expect(page.locator('#reporte-error')).toHaveText('La fecha "Desde" debe ser anterior o igual a "Hasta".');

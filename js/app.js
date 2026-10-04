@@ -18,7 +18,7 @@ import * as recordatorio from './recordatorio.js';
 
 const VISTAS = ['inicio', 'visitas', 'historial', 'perfil'];
 const TITULOS = { inicio: 'Hola', visitas: 'Visitas a parques', historial: 'Historial', perfil: 'Perfil' };
-const PANTALLAS = ['cargando', 'acceso', 'organizacion', 'app', 'checada', 'correccion'];
+const PANTALLAS = ['cargando', 'acceso', 'organizacion', 'app', 'checada', 'correccion', 'contrasena'];
 const ROLES = { asesor: 'Asesoría', coordinador: 'Coordinación', admin: 'Administración' };
 const $ = (id) => document.getElementById(id);
 
@@ -112,6 +112,8 @@ async function aplicar(r) {
     case 'sin_alta': return mostrarAcceso(sesion.MENSAJE_SIN_ALTA);
     case 'elegir': return mostrarSelector(r.membresias);
     case 'lista':
+      // Contraseña temporal: primero se cambia (sin señal no se puede; entonces se pide la próxima vez)
+      if (r.debeCambiarContrasena && !r.sinConexion) return mostrarCambioContrasena({ obligatorio: true });
       Object.assign(estado, { perfil: r.perfil, membresias: r.membresias, sinConexion: r.sinConexion });
       pintarPerfil(r.correo);
       // Al volver la señal se revisa la sesión: no sacar a la persona de una checada o una solicitud a medias
@@ -128,6 +130,26 @@ async function aplicar(r) {
       estado.recienEntro = false;
       return;
   }
+}
+
+// ---------- Cambiar contraseña (HU-09) ----------
+let volverDeContrasena = null;
+function mostrarCambioContrasena({ obligatorio }) {
+  $('form-contrasena').reset();
+  $('contrasena-error').hidden = true;
+  $('contrasena-explicacion').textContent = obligatorio
+    ? 'Entraste con una contraseña temporal. Elige una nueva (al menos 8 caracteres) para continuar.'
+    : 'Elige una contraseña nueva de al menos 8 caracteres.';
+  $('contrasena-cancelar').hidden = obligatorio;
+  $('contrasena-salir').hidden = !obligatorio;
+  volverDeContrasena = obligatorio ? null : (cambiada) => {
+    mostrarPantalla('app');
+    if (!cambiada) return;
+    $('perfil-contrasena').textContent = 'Contraseña cambiada ✓';
+    setTimeout(() => { $('perfil-contrasena').textContent = 'Cambiar contraseña'; }, 5000);
+  };
+  mostrarPantalla('contrasena');
+  $('contrasena-nueva').focus();
 }
 
 async function revisarSesion() {
@@ -178,6 +200,30 @@ function conectarFormularios() {
     mostrarAcceso();
   };
   $('perfil-salir').addEventListener('click', salir);
+  $('contrasena-salir').addEventListener('click', salir);
+  $('perfil-contrasena').addEventListener('click', () => mostrarCambioContrasena({ obligatorio: false }));
+  $('contrasena-cancelar').addEventListener('click', () => volverDeContrasena?.());
+  $('form-contrasena').addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    const nueva = $('contrasena-nueva').value;
+    const error = (t) => { $('contrasena-error').textContent = t; $('contrasena-error').hidden = false; };
+    if (nueva.length < 8) return error('La contraseña debe tener al menos 8 caracteres.');
+    if (nueva !== $('contrasena-repetir').value) return error('Las dos contraseñas no coinciden.');
+    const boton = $('contrasena-guardar');
+    boton.disabled = true;
+    try {
+      await api.cambiarContrasena(nueva);
+      if (volverDeContrasena) { volverDeContrasena(true); return; }
+      await aplicar(await sesion.resolver());
+    } catch (e) {
+      const m = `${e?.code ?? ''} ${e?.message ?? ''}`.toLowerCase();
+      error(api.esErrorDeRed(e) ? 'Sin señal: para cambiar la contraseña necesitas conexión.'
+        : m.includes('same') || m.includes('different') ? 'La contraseña nueva debe ser distinta de la temporal.'
+          : 'No se pudo cambiar la contraseña. Intenta de nuevo.');
+    } finally {
+      boton.disabled = false;
+    }
+  });
   $('organizacion-salir').addEventListener('click', salir);
   $('perfil-cambiar-org').addEventListener('click', async () => {
     await sesion.olvidarOrganizacion();

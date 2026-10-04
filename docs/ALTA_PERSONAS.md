@@ -1,7 +1,8 @@
-# Alta de personas (manual, desde el panel de Supabase)
+# Alta de personas
 
-Guía para **administración** (HU-09a). Mientras no exista la función `alta-persona` (HU-09), el alta se hace a mano
-en el panel de Supabase en tres pasos: **usuario → miembro → horario**. Toma unos 5 minutos por persona.
+Guía para **administración**. Desde la v24 (HU-09) el alta normal se hace en el **panel de la app › Personas**: ver
+[Alta desde el panel](#alta-desde-el-panel-hu-09-recomendado) al final. Los pasos manuales de abajo (HU-09a) quedan
+como respaldo: **usuario → miembro → horario**, unos 5 minutos por persona en el panel de Supabase.
 
 > **Antes de dar de alta a personas reales:** Parques Alegres debe haber firmado el aviso de privacidad y el
 > convenio del registro electrónico. Hasta entonces, usa solo usuarios de prueba (por ejemplo `asesor1@prueba.test`).
@@ -153,3 +154,61 @@ correo. Recuerda que el plan gratuito envía pocos correos por hora.
 - Validar o no el domicilio en teletrabajo (`validar_domicilio`, hoy `false`): si se decide validar, habrá que dar de
   alta un sitio tipo `domicilio` por persona. Se documentará entonces.
 - Firma del aviso de privacidad y del convenio antes de usar datos reales.
+
+---
+
+## Alta desde el panel (HU-09, recomendado)
+
+Una sola vez: **publicar la función `alta-persona`** y **nombrar a la primera persona de administración**. Después,
+todo se hace desde la app: Perfil (o Inicio) › Abrir panel de coordinación › **Personas**.
+
+### Una vez · Publicar la función `alta-persona` en Supabase
+
+La función es la única pieza que usa la llave secreta (`service_role`). Supabase se la entrega sola: **no copies la
+llave secreta en ningún lado**.
+
+1. En Supabase: **Edge Functions → Deploy a new function → Via Editor**.
+2. Nombre de la función: `alta-persona` (exacto, con guion).
+3. El editor trae un archivo `index.ts` de ejemplo: borra su contenido y pega el de
+   `supabase/functions/alta-persona/index.ts` de este repositorio.
+4. Agrega un archivo nuevo llamado `logica.js` (botón para agregar archivo del editor) y pega el contenido de
+   `supabase/functions/alta-persona/logica.js`.
+5. **Deploy function**. Espera a que diga que está activa. (Si el editor no deja agregar un segundo archivo, avisa a
+   Ecosistémica: se entrega una versión de un solo archivo.)
+6. En los ajustes de la función, desactiva **"Verify JWT with legacy secret"** (o "Enforce JWT verification"): la
+   función revisa por su cuenta quién la llama y solo atiende a administración. Si la dejas activada y el panel dice
+   "No se pudo consultar el servicio de cuentas", esta es la causa.
+
+### Una vez · Nombrar a la primera persona de administración
+
+Las demás se nombran desde el panel. Cambia el correo y corre en **SQL Editor**:
+
+```sql
+-- Dar el rol de administración a una persona que ya está dada de alta (por correo)
+update public.miembros m
+   set rol = 'admin'
+  from auth.users u
+ where u.id = m.user_id
+   and lower(u.email) = lower('correo@de.la.persona')
+   and m.organizacion_id = (select id from public.organizaciones where slug = 'parques-alegres');
+```
+
+### Dar de alta
+
+1. Panel › Personas › **Dar de alta**.
+2. Nombre completo, correo, número de empleado (opcional) y rol.
+3. Contraseña temporal: la app propone una (botón "Generar otra"). **Entrégala en persona**, no por chat ni correo.
+4. Horario: viene el horario tipo (escritorio lunes a viernes 09:00–13:00 en teletrabajo; campo 16:00–20:00). Marca o
+   desmarca días y cambia horas si hace falta. Se puede configurar otro horario tipo por organización (`horario_tipo`).
+5. **Dar de alta**. La primera vez que la persona entre, la app le pedirá cambiar la contraseña.
+
+Si el correo ya tenía cuenta en otra organización, se liga sin cambiar su contraseña (entra con la de siempre).
+
+### Cambiar rol u horario · Restablecer contraseña · Baja
+
+- **Editar**: rol y horario. El horario nuevo rige desde hoy; el anterior se cierra ayer y queda en el historial.
+- **Restablecer contraseña**: da una contraseña temporal nueva (la anterior deja de servir).
+- **Dar de baja**: la persona ya no puede entrar; sus registros se conservan. **Reactivar** la regresa.
+- Nadie puede darse de baja ni quitarse el rol de administración a sí mismo.
+- Todo queda en la bitácora con quién lo hizo.
+

@@ -41,4 +41,8 @@ bloque 5 | $P >/dev/null                                            # baja lógi
 # Alta en una segunda organización con el mismo usuario
 bloque 1 | sed "s/'parques-alegres'                        as organizacion/'iap-demo' as organizacion/" | $P >/dev/null
 [ "$(cuenta "select count(*) from miembros where user_id = '$UID_PRUEBA'")" = 2 ] || falla "segunda organización"
-echo "ALTA_PERSONAS: OK (5 bloques SQL de docs/ALTA_PERSONAS.md probados)"
+# Primera persona de administración (HU-09)
+bloque 6 | $P >/dev/null
+[ "$(cuenta "select count(*) from miembros where user_id = '$UID_PRUEBA' and rol = 'admin' and organizacion_id = (select id from organizaciones where slug = 'parques-alegres')")" = 1 ] || falla "primera administración"
+[ "$(cuenta "select count(*) from miembros where user_id = '$UID_PRUEBA' and rol = 'admin'")" = 1 ] || falla "administración solo en parques-alegres"
+echo "ALTA_PERSONAS: OK (6 bloques SQL de docs/ALTA_PERSONAS.md probados)"

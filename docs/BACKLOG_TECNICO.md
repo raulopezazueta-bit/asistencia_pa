@@ -7,6 +7,8 @@ Los IDs `HU-xx` coinciden con el backlog maestro. Estado al 2-oct-2026: **HU-06 
 Migraciones: `0001` y `0002` aplicadas; **`0003_incidencias.sql` (v17) y `0004_revisiones.sql` (v19) deben aplicarse en el SQL Editor de Supabase, en ese orden** (0003: validaciones de incidencias y la hora corregida reemplaza a la original en `v_jornada_diaria`; 0004: tabla `revisiones` para validar u observar checadas sin modificarlas).
 (0002: pausas sin revisión de zona por decisión del PO del 3-oct-2026; teletrabajo validado contra el domicilio propio).
 
+Función de Supabase: **`alta-persona` (v24) debe publicarse una vez** (pasos en `docs/ALTA_PERSONAS.md`, al final).
+
 Leyenda: ☐ pendiente · ◐ en curso · ☑ terminado (al cerrar, poner la versión `vNN`)
 
 ---
@@ -65,7 +67,7 @@ app cerrada y el CSV separa horas ordinarias y extra. Plan y decisiones a valida
 | Estado | ID | Historia | Criterios de aceptación |
 |---|---|---|---|
 | ◐ v23 | T-02 | Ajustes de la Review y prueba en Supabase real | Hecho (v23): panel cómodo en el celular (menú fijo con pendientes, incidencias antes de reportes, acceso desde Inicio). Falta: decisiones marcadas "Cambiar" y el guion de la demo en Android e iPhone reales |
-| ☐ | HU-09 | Alta de personas y horarios desde el panel | Admin crea cuenta, liga a la organización, asigna rol y horario, da de baja sin borrar; la llave secreta solo vive en Supabase |
+| ☑ v24 | HU-09 | Alta de personas y horarios desde el panel | Admin crea cuenta, liga a la organización, asigna rol y horario, da de baja sin borrar; la llave secreta solo vive en Supabase |
 | ☐ | HU-35 | Instalación con QR y guía de una página | QR que abre la app; guía para Android y iPhone (pantalla de inicio, permisos de ubicación, cámara y notificaciones) |
 | ☐ | HU-32 | Horas ordinarias y extra por semana | CSV semanal por persona; jornada semanal y reglas de pago configurables |
 | ☐ | HU-15b | Recordatorio con la app cerrada (Web Push) | Llega con la app cerrada (Android; iPhone con la app instalada); una vez por bloque y día |

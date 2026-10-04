@@ -427,3 +427,63 @@ export async function revisionesDeMisChecadas(eventoIds) {
   }
   return filas;
 }
+
+// ---------- Personas (HU-09, solo administración) ----------
+
+// Llama a la función alta-persona del servidor (la única que usa la llave secreta, dentro de Supabase).
+export async function altaPersona(solicitud) {
+  if (navigator.onLine === false) throw errorSinSenal();
+  const { data, error } = await conLimite(cliente.functions.invoke('alta-persona', { body: solicitud }), 20000);
+  if (error) {
+    // Respuesta del servidor con su mensaje en español (403, 409, …)
+    const cuerpo = await error.context?.json?.().catch(() => null);
+    if (cuerpo?.error) { const e = new Error(cuerpo.error); e.status = error.context.status; throw e; }
+    if (error.name === 'FunctionsFetchError' || error.name === 'FunctionsRelayError') throw errorSinSenal();
+    throw error;
+  }
+  return data;
+}
+
+// Todas las personas de la organización, también las dadas de baja.
+export async function personasDeOrganizacion(organizacionId) {
+  const { data, error } = await conLimite(cliente
+    .from('miembros')
+    .select('id, user_id, nombre_completo, num_empleado, rol, activo, fecha_alta, fecha_baja')
+    .eq('organizacion_id', organizacionId)
+    .order('activo', { ascending: false })
+    .order('nombre_completo'), 15000);
+  if (error) throw error;
+  return data || [];
+}
+
+export async function cambiarRol(miembroId, rol) {
+  const { data, error } = await conLimite(cliente
+    .from('miembros')
+    .update({ rol })
+    .eq('id', miembroId)
+    .select('id, rol'), 15000);
+  if (error) throw error;
+  if (!data?.length) throw new Error('No tienes permiso para cambiar el rol.');
+}
+
+// Nuevo horario sin borrar el anterior: el vigente se cierra ayer y el nuevo rige desde hoy (el reporte conserva la historia).
+export async function guardarHorario(organizacionId, miembroId, filas, hoy, ayer) {
+  const { error: e1 } = await conLimite(cliente
+    .from('horarios')
+    .update({ vigente_hasta: ayer })
+    .eq('miembro_id', miembroId)
+    .or(`vigente_hasta.is.null,vigente_hasta.gte.${hoy}`), 15000);
+  if (e1) throw e1;
+  if (!filas.length) return;
+  const { error: e2 } = await conLimite(cliente
+    .from('horarios')
+    .insert(filas.map((f) => ({ ...f, organizacion_id: organizacionId, miembro_id: miembroId, vigente_desde: hoy, vigente_hasta: null }))), 15000);
+  if (e2) throw e2;
+}
+
+// La propia persona cambia su contraseña (y deja de tener la temporal).
+export async function cambiarContrasena(nueva) {
+  if (navigator.onLine === false) throw errorSinSenal();
+  const { error } = await conLimite(cliente.auth.updateUser({ password: nueva, data: { debe_cambiar_contrasena: false } }), 15000);
+  if (error) throw error;
+}

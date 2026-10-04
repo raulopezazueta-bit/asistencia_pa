@@ -114,18 +114,22 @@ test('el código de la app nunca pide editar ni borrar en el servidor', () => {
   const leer = (ruta) => readFileSync(new URL(`../${ruta}`, import.meta.url), 'utf8');
   const api = leer('js/api.js');
   // Única puerta a Supabase: sin delete/remove, y todo upsert es "sin sobrescribir".
-  // Única edición permitida: resolver una incidencia (pendiente → aprobada/rechazada; el trigger controlar_incidencia
-  // impide cambiar cualquier otro dato). Eventos, bitácora y selfies nunca se editan.
   expect(api).not.toMatch(/\.delete\(|\.remove\(/);
   const ediciones = api.match(/\.from\('[a-z_]+'\)\s*\.update\(\{[^}]*\}/g) || [];
   expect(api.match(/\.update\(/g) || []).toHaveLength(ediciones.length);
-  expect(ediciones).toEqual([".from('incidencias')\n    .update({ estado, comentario_resolucion: comentario || null }"]);
+  // Ediciones permitidas: resolver una incidencia; el rol de una persona y cerrar la vigencia de un horario (HU-09, solo
+  // administración por RLS). Nunca eventos, bitácora, revisiones ni selfies.
+  expect(ediciones).toEqual([
+    ".from('incidencias')\n    .update({ estado, comentario_resolucion: comentario || null }",
+    ".from('miembros')\n    .update({ rol }",
+    ".from('horarios')\n    .update({ vigente_hasta: ayer }"
+  ]);
   const upserts = api.match(/\.upsert\([^;]*?\)/gs) || [];
   expect(upserts.length).toBeGreaterThan(0);
   for (const u of upserts) expect(u).toContain('ignoreDuplicates: true');
   expect(api).toMatch(/upload\([^)]*upsert: false/);              // las selfies nunca se reemplazan
   // Ningún otro módulo habla con Supabase directamente
-  for (const m of ['app', 'cola', 'checada', 'jornada', 'sitios', 'sesion', 'camara', 'geo', 'reglas', 'reloj', 'almacen', 'horas', 'incidencias', 'correccion', 'panel', 'tablero', 'bandeja', 'reporte', 'reporte_datos', 'reporte_pagina', 'recordatorio']) {
+  for (const m of ['app', 'cola', 'checada', 'jornada', 'sitios', 'sesion', 'camara', 'geo', 'reglas', 'reloj', 'almacen', 'horas', 'incidencias', 'correccion', 'panel', 'tablero', 'bandeja', 'reporte', 'reporte_datos', 'reporte_pagina', 'recordatorio', 'personas', 'horario_semanal']) {
     expect(leer(`js/${m}.js`), m).not.toMatch(/supabase\.|cliente\.from|\.storage\./);
   }
   // El envío en segundo plano del service worker solo usa POST con "ignore-duplicates"

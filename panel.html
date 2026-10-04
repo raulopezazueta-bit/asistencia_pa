@@ -41,6 +41,7 @@
         <a href="#seccion-revision">Revisión <span class="panel__cuenta" id="menu-revisar"></span></a>
         <a href="#seccion-incidencias">Incidencias <span class="panel__cuenta" id="menu-incidencias"></span></a>
         <a href="#seccion-reportes">Reportes</a>
+        <a href="#seccion-personas" id="menu-personas" hidden>Personas</a>
       </nav>
 
       <main class="contenido">
@@ -116,6 +117,40 @@
             <p class="aviso aviso--critico reportes__error" id="reporte-error" role="alert" hidden></p>
           </form>
           <p class="secundario chico">El reporte usa la vista oficial de horas (la misma del servidor) y señala revisiones, incidencias, bloques sin cerrar y días fuera de horario. El CSV trae una fila por persona y día; las horas extra por semana llegan en el Sprint 4.</p>
+        </section>
+
+        <!-- Personas (HU-09, solo administración) -->
+        <section class="vista panel__seccion" id="seccion-personas" aria-labelledby="personas-titulo" hidden>
+          <div class="panel__cabecera">
+            <h2 class="panel__titulo" id="personas-titulo">Personas</h2>
+            <button class="boton boton--lleno boton--chico" type="button" id="personas-nueva">Dar de alta</button>
+          </div>
+          <p class="secundario chico">Alta con contraseña temporal (la app pide cambiarla al entrar), rol y horario. La baja no borra nada: la persona ya no entra y sus registros se conservan. Un horario nuevo rige desde hoy y el anterior queda en el historial.</p>
+          <div class="aviso aviso--ok" id="alta-resultado" role="status" hidden>
+            <div><p id="alta-resultado-texto"></p><p class="mono alta__contrasena" id="alta-resultado-contrasena"></p></div>
+          </div>
+          <form class="tarjeta formulario" id="form-alta" novalidate hidden>
+            <label class="campo"><span class="campo__etiqueta">Nombre completo</span><input class="campo__entrada" id="alta-nombre" autocomplete="off"></label>
+            <label class="campo"><span class="campo__etiqueta">Correo (con él entra a la app)</span><input class="campo__entrada" id="alta-correo" type="email" autocomplete="off" inputmode="email"></label>
+            <div class="campo__fila alta__fila">
+              <label class="campo"><span class="campo__etiqueta">Núm. de empleado (opcional)</span><input class="campo__entrada mono" id="alta-num" autocomplete="off"></label>
+              <label class="campo"><span class="campo__etiqueta">Rol</span>
+                <select class="campo__entrada" id="alta-rol"><option value="asesor">Asesoría</option><option value="coordinador">Coordinación</option><option value="admin">Administración</option></select>
+              </label>
+            </div>
+            <div class="campo">
+              <span class="campo__etiqueta">Contraseña temporal</span>
+              <div class="campo__fila"><input class="campo__entrada mono" id="alta-contrasena" autocomplete="off" aria-label="Contraseña temporal"><button class="boton boton--chico" type="button" id="alta-generar">Generar otra</button></div>
+            </div>
+            <div id="alta-horario"></div>
+            <p class="aviso aviso--critico" id="alta-error" role="alert" hidden></p>
+            <div class="incidencia__botones">
+              <button class="boton boton--lleno" type="submit" id="alta-guardar">Dar de alta</button>
+              <button class="boton" type="button" id="alta-cancelar">Cancelar</button>
+            </div>
+          </form>
+          <p class="secundario chico" id="personas-nota"></p>
+          <div class="panel__lista" id="personas-lista" aria-live="polite"></div>
         </section>
 
       </main>

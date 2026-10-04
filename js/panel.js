@@ -1,4 +1,5 @@
-// Panel de coordinación (panel.html): tablero del día (HU-27), bandeja de revisión (HU-23), reportes (HU-31) e incidencias (HU-29).
+// Panel de coordinación (panel.html): tablero del día (HU-27), bandeja de revisión (HU-23), incidencias (HU-29), reportes (HU-31)
+// y, solo para administración, personas (HU-09, js/personas.js).
 // Usa la misma sesión que la app del asesor (mismo teléfono o computadora). Necesita señal.
 import * as sesion from './sesion.js';
 import * as api from './api.js';
@@ -8,6 +9,7 @@ import { tableroDelDia } from './tablero.js';
 import { armarBandeja, MOTIVOS } from './bandeja.js';
 import { csvNomina } from './reporte.js';
 import { cargarReporte } from './reporte_datos.js';
+import * as personas from './personas.js';
 import { rangoDelDia, diasDeLaSemana, formatoHoras, partesLocales } from './reglas.js';
 
 const $ = (id) => document.getElementById(id);
@@ -62,6 +64,7 @@ async function iniciar() {
   prepararReportes();
   await sitios.actualizar(r.perfil).catch(() => null);   // nombres de parques (una descarga al día, compartida con la app)
   await Promise.all([pintarHoy(), pintarBandeja(), pintar()]);
+  if (r.perfil.rol === 'admin') await personas.preparar(r.perfil, aviso);
 }
 
 // ---------- Tablero del día (HU-27) ----------

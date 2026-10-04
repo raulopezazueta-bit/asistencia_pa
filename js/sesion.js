@@ -50,7 +50,9 @@ export async function resolver() {
   if (!perfil) return { estado: 'elegir', membresias };
 
   await guardarMeta('organizacion_elegida', perfil.organizacionId);
-  return { estado: 'lista', perfil, membresias, sinConexion, correo: sesion.usuario.email };
+  // Contraseña temporal puesta por administración (HU-09): la app pide cambiarla antes de seguir
+  const debeCambiarContrasena = !!sesion.usuario.user_metadata?.debe_cambiar_contrasena;
+  return { estado: 'lista', perfil, membresias, sinConexion, correo: sesion.usuario.email, debeCambiarContrasena };
 }
 
 export async function elegirOrganizacion(organizacionId) {
@@ -88,6 +90,7 @@ export function mensajeDeError(error) {
   const m = `${error?.code ?? ''} ${error?.message ?? ''}`.toLowerCase();
   if (m.includes('invalid') && m.includes('credential')) return 'Correo o contraseña incorrectos.';
   if (m.includes('not confirmed')) return 'Tu correo aún no está confirmado. Pide a coordinación que lo confirme.';
+  if (m.includes('banned')) return 'Tu acceso está dado de baja. Si es un error, habla con coordinación.';
   if (m.includes('rate') || error?.status === 429) return 'Demasiados intentos. Espera unos minutos y vuelve a intentar.';
   return 'No se pudo iniciar sesión. Intenta de nuevo en un momento.';
 }
