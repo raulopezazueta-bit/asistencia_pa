@@ -177,6 +177,15 @@ textarea.campo__entrada { resize: vertical; min-height: 88px; }
 }
 .opcion__titulo { font-weight: 600; font-size: 17px; }
 .opcion__detalle { font-size: 13px; color: var(--follaje); }
+/* Opciones con radio (formulario de corrección): toda la tarjeta es el área táctil */
+.campo--grupo { border: 0; margin: 0; padding: 0; min-width: 0; }
+.campo--grupo > legend { padding: 0; margin-bottom: 6px; }
+.opcion--radio { position: relative; min-height: 56px; cursor: pointer; padding-left: 48px; }
+.opcion--radio input { position: absolute; left: 16px; top: 50%; translate: 0 -50%; width: 20px; height: 20px; margin: 0; accent-color: var(--verde); }
+.opcion--radio:has(input:checked) { border-color: var(--verde); box-shadow: 0 0 0 2px rgb(20 80 58 / 25%); }
+.opcion--radio:has(input:focus-visible) { outline: 3px solid rgb(20 80 58 / 35%); outline-offset: 2px; }
+.opcion--radio .opcion__titulo { font-size: 16px; }
+.solicitud__comentario { font-size: 13px; color: var(--grafito); margin-top: 4px; }
 
 /* ---------- Mis horas (semana) ---------- */
 .dia__derecha { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
@@ -269,3 +278,18 @@ textarea.campo__entrada { resize: vertical; min-height: 88px; }
 }
 .nav__boton svg { width: 24px; height: 24px; }
 .nav__boton[aria-current="page"] { color: var(--verde); font-weight: 600; }
+
+/* ---------- Panel de coordinación (panel.html) ---------- */
+.app--panel { max-width: 1040px; }
+.panel__cabecera { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; }
+.panel__titulo { font-size: 18px; font-weight: 600; }
+.panel__filtros { display: flex; flex-wrap: wrap; gap: 8px; }
+.panel__filtros [aria-selected="true"] { background: var(--verde); color: var(--blanco); }
+.panel__lista { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr)); gap: 12px; align-items: start; }
+.incidencia { display: flex; flex-direction: column; gap: 6px; }
+.incidencia__cabecera { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 2px; }
+.incidencia__cabecera .chip { white-space: normal; text-align: right; }
+.incidencia__linea { font-size: 14px; overflow-wrap: anywhere; }
+.incidencia__etiqueta { color: var(--follaje); }
+.incidencia__botones { display: flex; gap: 8px; }
+.incidencia__botones > * { flex: 1; }

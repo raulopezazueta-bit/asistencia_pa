@@ -30,6 +30,18 @@ export const USUARIOS = {
     miembros: [{ id: 'aaaaaaaa-0000-0000-0000-000000000003', org: 'demo', nombre_completo: 'Asesor Demo', rol: 'asesor', activo: true }] }
 };
 
+const MIEMBROS = Object.values(USUARIOS).flatMap((u) => u.miembros);
+
+// Incidencia ya guardada en el servidor (para precargar el simulador). hora: 'AAAA-MM-DDTHH:MM' en hora de Culiacán.
+export function incidenciaServidor(tipo, extra = {}) {
+  const { hora, ...resto } = extra;
+  return { id: `dddddddd-0000-0000-0000-${String(Math.floor(Math.random() * 1e12)).padStart(12, '0')}`,
+    organizacion_id: ORGS.pa.id, miembro_id: 'aaaaaaaa-0000-0000-0000-000000000001', tipo, evento_original_id: null,
+    tipo_evento_propuesto: null, bloque_propuesto: null, hora_propuesta: hora ? new Date(`${hora}:00-07:00`).toISOString() : null,
+    motivo: 'Motivo ficticio de prueba', estado: 'pendiente', resuelta_por: null, resuelta_en: null, comentario_resolucion: null,
+    creada_en: '2026-10-05T18:00:00.000Z', ...resto };
+}
+
 // Catálogo FICTICIO de sitios (nunca el seed real): cuadrícula alrededor del centro de Culiacán.
 // Algunos nombres llevan acentos para probar la búsqueda.
 const COLONIAS = ['Colonia Ficticia Norte', 'Colonia Ficticia Sur', 'Fraccionamiento Los Álamos Ficticio', 'Barrio Ejemplo'];
@@ -114,9 +126,10 @@ export function eventoServidor(tipo, hora, extra = {}) {
 // Las rutas se instalan en el contexto: así también se atienden los envíos del service worker (Background Sync).
 // horaServidor: Date que el "servidor" sella en el token (HU-19, diferencia de reloj).
 // horarioAsesor: reemplaza el horario del asesor de prueba (filas como las de la tabla horarios).
-export async function simularSupabase(page, { sitiosPA = 782, sitiosDemo = 3, eventos = [], configPA = {}, rechazarEventos = false, horaServidor = null, horarioAsesor = HORARIO_ASESOR } = {}) {
+// incidencias: filas iniciales de la tabla incidencias (ver incidenciaServidor).
+export async function simularSupabase(page, { sitiosPA = 782, sitiosDemo = 3, eventos = [], configPA = {}, rechazarEventos = false, horaServidor = null, horarioAsesor = HORARIO_ASESOR, incidencias = [] } = {}) {
   const registro = [];
-  const estado = { sinRed: false, recibidos: [], selfies: [] };
+  const estado = { sinRed: false, recibidos: [], selfies: [], incidencias };
   // Domicilio ficticio del asesor de prueba: RLS solo se lo muestra a él (y a coordinación).
   const domicilio = { ...sitiosFicticios('pa', 1, 'D')[0], id: 'dddddddd-dddd-0000-0000-000000000001', clave_externa: null,
     id_oficial: null, nombre: 'Domicilio ficticio', tipo: 'domicilio', miembro_id: 'aaaaaaaa-0000-0000-0000-000000000001', perimetro_geojson: null };
@@ -271,7 +284,8 @@ export async function simularSupabase(page, { sitiosPA = 782, sitiosDemo = 3, ev
       if (!u.miembros.some((m) => m.id === miembro)) return json(route, 200, []);
       const zona = 'America/Mazatlan';
       const porFecha = new Map();
-      for (const e of eventos.filter((x) => x.miembro_id === miembro)) {
+      const corregidas = new Set(incidencias.filter((i) => i.estado === 'aprobada' && i.tipo === 'correccion_hora').map((i) => i.evento_original_id));
+      for (const e of eventos.filter((x) => x.miembro_id === miembro && !corregidas.has(x.id))) {
         const f = partesLocales(e.hora_efectiva, zona).fecha;
         if (!porFecha.has(f)) porFecha.set(f, []);
         porFecha.get(f).push({ id: e.id, tipo: e.tipo, bloque: e.bloque, hora: e.hora_efectiva, estadoRevision: e.estado_revision });
@@ -287,6 +301,66 @@ export async function simularSupabase(page, { sitiosPA = 782, sitiosDemo = 3, ev
         })
         .sort((a, b) => a.fecha.localeCompare(b.fecha));
       return json(route, 200, filas);
+    }
+
+    // Incidencias (HU-28/29): imita RLS (cada quien las suyas; coordinación las de su organización)
+    // y los triggers controlar_incidencia, validar_incidencia y aplicar_incidencia_aprobada (migraciones 0001 y 0003).
+    if (url.pathname === '/rest/v1/incidencias') {
+      const u = usuarioDeToken(req);
+      if (!u) return json(route, 401, { code: 'PGRST301', message: 'JWT expired' });
+      const mios = u.miembros.filter((m) => m.activo).map((m) => m.id);
+      const orgsCoord = u.miembros.filter((m) => m.activo && m.rol !== 'asesor').map((m) => ORGS[m.org].id);
+      const visibles = () => incidencias.filter((i) => mios.includes(i.miembro_id) || orgsCoord.includes(i.organizacion_id));
+      const errorBD = (message) => json(route, 400, { code: 'P0001', message });
+      if (req.method() === 'GET') {
+        let filas = visibles();
+        for (const campo of ['miembro_id', 'organizacion_id', 'estado']) {
+          const f = url.searchParams.get(campo);
+          if (f?.startsWith('eq.')) filas = filas.filter((i) => i[campo] === f.slice(3));
+          if (f?.startsWith('neq.')) filas = filas.filter((i) => i[campo] !== f.slice(4));
+        }
+        const desde = url.searchParams.get('creada_en');
+        if (desde?.startsWith('gte.')) filas = filas.filter((i) => i.creada_en >= desde.slice(4));
+        const asc = /creada_en\.asc/.test(url.searchParams.get('order') || '');
+        filas = [...filas].sort((a, b) => (asc ? 1 : -1) * a.creada_en.localeCompare(b.creada_en));
+        const nombre = (id) => (id ? { nombre_completo: MIEMBROS.find((m) => m.id === id)?.nombre_completo } : null);
+        const conVinculos = /persona:/.test(url.searchParams.get('select') || '');
+        return json(route, 200, filas.map((i) => conVinculos ? { ...i, persona: nombre(i.miembro_id), resolutor: nombre(i.resuelta_por),
+          original: i.evento_original_id ? (({ tipo, bloque, hora_efectiva, motivos_revision }) => ({ tipo, bloque, hora_efectiva, motivos_revision }))(eventos.find((e) => e.id === i.evento_original_id) || {}) : null } : i));
+      }
+      if (req.method() === 'POST') {
+        const cuerpo = req.postDataJSON();
+        for (const f of Array.isArray(cuerpo) ? cuerpo : [cuerpo]) {
+          const miembro = u.miembros.find((m) => m.id === f.miembro_id && m.activo);
+          if (!miembro) return json(route, 403, { code: '42501', message: 'new row violates row-level security policy for table "incidencias"' });
+          if (incidencias.some((i) => i.id === f.id)) continue;   // ON CONFLICT DO NOTHING
+          if (String(f.motivo || '').trim().length < 5) return json(route, 400, { code: '23514', message: 'new row for relation "incidencias" violates check constraint "incidencias_motivo_check"' });
+          if (['omision', 'correccion_hora'].includes(f.tipo) && (!f.tipo_evento_propuesto || !f.hora_propuesta)) return errorBD('Indica qué checada y a qué hora');
+          if (['correccion_hora', 'fuera_geocerca'].includes(f.tipo) && !f.evento_original_id) return errorBD('Indica la checada que quieres corregir');
+          incidencias.push({ evento_original_id: null, tipo_evento_propuesto: null, bloque_propuesto: null, hora_propuesta: null, ...f,
+            organizacion_id: ORGS[miembro.org].id, estado: 'pendiente', resuelta_por: null, resuelta_en: null, comentario_resolucion: null,
+            creada_en: new Date().toISOString() });
+        }
+        return json(route, 201, undefined);
+      }
+      if (req.method() === 'PATCH') {
+        const datos = req.postDataJSON();
+        const id = url.searchParams.get('id')?.slice(3);
+        const soloPendiente = url.searchParams.get('estado') === 'eq.pendiente';
+        const inc = visibles().find((i) => i.id === id && orgsCoord.includes(i.organizacion_id) && (!soloPendiente || i.estado === 'pendiente'));
+        if (!inc) return json(route, 200, []);
+        if (inc.estado !== 'pendiente') return errorBD('La incidencia ya fue resuelta');
+        const resolutor = u.miembros.find((m) => m.activo && m.rol !== 'asesor' && ORGS[m.org].id === inc.organizacion_id);
+        if (resolutor.id === inc.miembro_id) return errorBD('Nadie aprueba sus propias incidencias');
+        if (datos.estado === 'rechazada' && String(datos.comentario_resolucion || '').trim().length < 5) return errorBD('Para rechazar, escribe el motivo (al menos 5 caracteres)');
+        Object.assign(inc, { estado: datos.estado, comentario_resolucion: datos.comentario_resolucion, resuelta_por: resolutor.id, resuelta_en: new Date().toISOString() });
+        if (inc.estado === 'aprobada' && inc.tipo_evento_propuesto && inc.hora_propuesta) {
+          eventos.push({ id: `ffffffff-1111-0000-0000-${String(eventos.length).padStart(12, '0')}`, miembro_id: inc.miembro_id, organizacion_id: inc.organizacion_id,
+            tipo: inc.tipo_evento_propuesto, bloque: inc.bloque_propuesto, modalidad: null, hora_efectiva: new Date(inc.hora_propuesta).toISOString(),
+            sitio_id: null, dentro_geocerca: null, estado_revision: 'ok', motivos_revision: [], origen: 'incidencia', incidencia_id: inc.id });
+        }
+        return json(route, 200, [{ id: inc.id, estado: inc.estado }]);
+      }
     }
 
     if (url.pathname === '/rest/v1/v_sitios_app' && req.method() === 'GET') {

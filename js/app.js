@@ -8,11 +8,13 @@ import * as cola from './cola.js';
 import { guardarMeta } from './almacen.js';
 import * as reloj from './reloj.js';
 import * as horas from './horas.js';
+import * as correccion from './correccion.js';
+import * as incidencias from './incidencias.js';
 import { calcularEstado, resumenDelDia, formatoHoras, recorridoDelDia } from './reglas.js';
 
 const VISTAS = ['inicio', 'visitas', 'historial', 'perfil'];
 const TITULOS = { inicio: 'Hola', visitas: 'Visitas a parques', historial: 'Historial', perfil: 'Perfil' };
-const PANTALLAS = ['cargando', 'acceso', 'organizacion', 'app', 'checada'];
+const PANTALLAS = ['cargando', 'acceso', 'organizacion', 'app', 'checada', 'correccion'];
 const ROLES = { asesor: 'Asesoría', coordinador: 'Coordinación', admin: 'Administración' };
 const $ = (id) => document.getElementById(id);
 
@@ -59,6 +61,7 @@ function pintarPerfil(correo) {
   $('perfil-rol').textContent = ROLES[p.rol] || p.rol;
   $('perfil-correo').textContent = correo || '—';
   $('perfil-cambiar-org').hidden = estado.membresias.length < 2;
+  $('perfil-panel').hidden = !['coordinador', 'admin'].includes(p.rol);
   $('aviso-sin-conexion').hidden = !estado.sinConexion;
   pintarFecha();
   mostrarVista();
@@ -105,7 +108,8 @@ async function aplicar(r) {
     case 'lista':
       Object.assign(estado, { perfil: r.perfil, membresias: r.membresias, sinConexion: r.sinConexion });
       pintarPerfil(r.correo);
-      mostrarPantalla('app');
+      // Al volver la señal se revisa la sesión: no sacar a la persona de una checada o una solicitud a medias
+      if ($('pantalla-checada').hidden && $('pantalla-correccion').hidden) mostrarPantalla('app');
       sincronizarSitios({ forzar: estado.recienEntro }).then(pintarJornada);
       // Datos para que el service worker pueda enviar pendientes con la app cerrada (Background Sync)
       guardarMeta('miembros_sw', r.membresias.map((m) => m.miembroId)).catch(() => {});
@@ -113,6 +117,7 @@ async function aplicar(r) {
       enviarPendientes({ forzar: true });
       pintarJornada();
       pintarSemana();
+      pintarSolicitudes();
       estado.recienEntro = false;
       return;
   }
@@ -175,9 +180,11 @@ function conectarFormularios() {
   window.addEventListener('online', () => { if (estado.perfil) revisarSesion(); });
   // Al volver a la app: si cambió el día, se descarga de nuevo el catálogo.
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible' && estado.perfil) { sincronizarSitios(); enviarPendientes(); pintarJornada(); pintarSemana(); }
+    if (document.visibilityState === 'visible' && estado.perfil) { sincronizarSitios(); enviarPendientes(); pintarJornada(); pintarSemana(); pintarSolicitudes(); }
   });
   $('catalogo-actualizar').addEventListener('click', () => sincronizarSitios({ forzar: true }));
+  $('historial-solicitar').addEventListener('click', abrirCorreccion);
+  $('perfil-solicitar').addEventListener('click', abrirCorreccion);
   $('boton-principal').addEventListener('click', () => {
     const b = $('boton-principal');
     iniciarChecada(b.dataset.accion, b.dataset.bloque || null);
@@ -246,6 +253,61 @@ async function iniciarChecada(accion, bloque) {
   } finally {
     estado.checando = false;
   }
+}
+
+// ---------- Incidencias: solicitar corrección (HU-28) ----------
+function abrirCorreccion() {
+  if (!estado.perfil || estado.checando) return;
+  correccion.abrir({
+    perfil: estado.perfil, mostrarPantalla,
+    alTerminar: () => { mostrarPantalla('app'); pintarSolicitudes(); }
+  });
+}
+
+function fechaHoraCorta(iso) {
+  const p = new Intl.DateTimeFormat('en-CA', { timeZone: zonaHoraria(), year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(iso));
+  return `${fechaCorta(p)} · ${horaLocal(iso)}`;
+}
+
+let pintandoSolicitudes = null;
+async function pintarSolicitudes() {
+  if (!estado.perfil) return;
+  if (pintandoSolicitudes) return pintandoSolicitudes;
+  pintandoSolicitudes = (async () => {
+    const perfil = estado.perfil;
+    const { filas, sinConexion } = await incidencias.mias(perfil);
+    if (estado.perfil !== perfil) return;
+    $('solicitudes-lista').replaceChildren(...filas.slice(0, 20).map((i) => {
+      const li = document.createElement('li');
+      li.className = 'lista__fila';
+      li.dataset.incidencia = i.id;
+      const izq = document.createElement('div');
+      const t = document.createElement('p');
+      t.className = 'lista__titulo';
+      t.textContent = i.tipo_evento_propuesto ? `${incidencias.TIPOS[i.tipo]} · ${incidencias.nombreChecada(i.tipo_evento_propuesto, i.bloque_propuesto)}` : incidencias.TIPOS[i.tipo];
+      const d = document.createElement('p');
+      d.className = 'lista__detalle';
+      d.textContent = i.hora_propuesta ? `${fechaHoraCorta(i.hora_propuesta)} · ${i.motivo}` : i.motivo;
+      izq.append(t, d);
+      if (i.comentario_resolucion) {
+        const c = document.createElement('p');
+        c.className = 'solicitud__comentario';
+        c.textContent = `Coordinación: ${i.comentario_resolucion}`;
+        izq.append(c);
+      }
+      const [texto, clase] = incidencias.ESTADOS[i.estado];
+      const chip = document.createElement('span');
+      chip.className = `chip ${clase}`;
+      chip.textContent = texto;
+      li.append(izq, chip);
+      return li;
+    }));
+    const nota = sinConexion ? 'Sin señal: se muestra la última información guardada.'
+      : filas.length ? '' : 'No has solicitado correcciones.';
+    $('solicitudes-nota').textContent = nota;
+    $('solicitudes-nota').hidden = !nota;
+  })().finally(() => { pintandoSolicitudes = null; });
+  return pintandoSolicitudes;
 }
 
 const misMiembros = () => estado.membresias.map((m) => m.miembroId);
@@ -343,8 +405,11 @@ async function pintarJornada() {
       b.className = 'boton boton--ancho';
       b.dataset.accion = s.accion;
       b.textContent = s.texto;
-      b.disabled = !ACCIONES_ACTIVAS.includes(s.accion);
-      if (!b.disabled) b.addEventListener('click', () => iniciarChecada(s.accion, s.bloque));
+      if (s.accion === 'solicitar_correccion') b.addEventListener('click', abrirCorreccion);
+      else {
+        b.disabled = !ACCIONES_ACTIVAS.includes(s.accion);
+        if (!b.disabled) b.addEventListener('click', () => iniciarChecada(s.accion, s.bloque));
+      }
       return b;
     }));
     pintarVisitas(e, eventos);
@@ -581,7 +646,7 @@ function iniciar() {
   $('version-app').textContent = CONFIG.VERSION_APP;
   pintarFecha();
   mostrarVista();
-  window.addEventListener('hashchange', () => { mostrarVista(); if (location.hash === '#historial') pintarSemana(); });
+  window.addEventListener('hashchange', () => { mostrarVista(); if (location.hash === '#historial') { pintarSemana(); pintarSolicitudes(); } });
   conectarFormularios();
   registrarServiceWorker().catch((e) => console.warn('Service worker no registrado', e));
   revisarSesion();

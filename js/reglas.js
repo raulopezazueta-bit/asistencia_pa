@@ -31,6 +31,20 @@ export function rangoDelDia(ahora, zona) {
   return { desde: medianoche(y, m, d), hasta: medianoche(y, m, d + 1), fecha };
 }
 
+// Instante (Date) que corresponde a la fecha 'AAAA-MM-DD' y la hora 'HH:MM' en la zona de la organización.
+export function instanteLocal(fecha, hora, zona) {
+  const [y, m, d] = fecha.split('-').map(Number);
+  const [hh, mm] = hora.split(':').map(Number);
+  const deseado = Date.UTC(y, m - 1, d, hh, mm);
+  let t = deseado;
+  for (let i = 0; i < 2; i++) {   // dos pasos bastan aunque haya cambio de horario
+    const p = partesLocales(t, zona);
+    const [py, pm, pd] = p.fecha.split('-').map(Number);
+    t += deseado - Date.UTC(py, pm - 1, pd, Math.floor(p.minutos / 60), p.minutos % 60);
+  }
+  return new Date(t);
+}
+
 // Fechas (AAAA-MM-DD) de lunes a domingo de la semana que contiene `ahora`, en la zona de la organización.
 export function diasDeLaSemana(ahora, zona) {
   const { fecha, diaIso } = partesLocales(ahora, zona);

@@ -156,3 +156,16 @@ test('sin horario: elige el bloque al checar; cancelar no registra nada', async 
   await expect(resultado(page)).toHaveText('Registrado');
   expect(enviados(sim)[0]).toMatchObject({ bloque: 'campo', miembro_id: 'aaaaaaaa-0000-0000-0000-000000000002' });
 });
+
+test('si vuelve la señal a media checada, la pantalla de checada no se cierra', async ({ page, context }) => {
+  const sim = await abrirA(page, context, '16:00');
+  await senal(context, sim, false);
+  await principal(page).click();
+  await expect(page.locator('#checada-zona')).toHaveText('Dentro de la zona de Parque Ficticio 001.');
+  await senal(context, sim, true);   // dispara 'online': la app revisa la sesión en segundo plano
+  await page.waitForTimeout(800);
+  await expect(page.locator('#pantalla-checada')).toBeVisible();
+  await tomarSelfie(page);
+  await page.locator('#checada-confirmar').click();
+  await expect(resultado(page)).toHaveText('Registrado');
+});

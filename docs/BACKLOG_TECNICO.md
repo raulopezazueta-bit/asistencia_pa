@@ -4,8 +4,8 @@ Derivado del product backlog (38 historias). Aquí solo está lo que construye l
 Los IDs `HU-xx` coinciden con el backlog maestro. Estado al 2-oct-2026: **HU-06 (modelo de datos) hecho** en
 `supabase/migrations/0001_esquema_inicial.sql`, con pruebas en `supabase/tests/`.
 
-Migraciones: `0001` aplicada; **`0002_pausas_y_domicilio.sql` (v12) debe aplicarse en el SQL Editor de Supabase**
-(pausas sin revisión de zona por decisión del PO del 3-oct-2026; teletrabajo validado contra el domicilio propio).
+Migraciones: `0001` y `0002` aplicadas; **`0003_incidencias.sql` (v17) debe aplicarse en el SQL Editor de Supabase** (validaciones de incidencias y la hora corregida reemplaza a la original en `v_jornada_diaria`).
+(0002: pausas sin revisión de zona por decisión del PO del 3-oct-2026; teletrabajo validado contra el domicilio propio).
 
 Leyenda: ☐ pendiente · ◐ en curso · ☑ terminado (al cerrar, poner la versión `vNN`)
 
@@ -51,7 +51,7 @@ HU-15 pasa al Sprint 4.
 | ☑ v15 | HU-12b | Jornada de lunes a viernes y sábados ocasionales | Día sin horario = "actividad fuera de horario" (elige tipo al checar; al cerrarla, jornada cerrada con opción de otra); sin alerta de olvido ni retardo; "Fuera de horario" en Mis horas; `permitir_dias_sin_horario` configurable |
 | ☑ v16 | HU-24 | Visitas a parques | Llegada/salida por parque; llegar a otro parque cierra el anterior; pantalla Visitas §7.3 |
 | ☐ | HU-27 | Panel de coordinación | `panel.html` §8 (tarjetas + tabla del día) solo para `coordinador`/`admin` |
-| ☐ | HU-28/29 | Incidencias | Asesor solicita con motivo (≥ 5 caracteres); coordinación aprueba/rechaza; el evento corregido aparece con `origen = 'incidencia'` |
+| ☑ v17 | HU-28/29 | Incidencias | Asesor solicita con motivo (≥ 5 caracteres); coordinación aprueba/rechaza; el evento corregido aparece con `origen = 'incidencia'` |
 | ☐ | HU-23 | Bandeja de revisión | Lista de eventos `revisar` con motivos y selfie (URL firmada) |
 | ☐ | HU-31 | Reporte para autoridad | PDF por periodo y persona: datos de la organización, persona, cada día con inicio, fin, bloques, pausas, minutos efectivos y marcas de revisión/incidencia |
 | ☐ | HU-16 | Mi registro | El asesor consulta y descarga su historial (CSV y PDF) |

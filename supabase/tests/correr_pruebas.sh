@@ -17,5 +17,7 @@ R0002=$($P -d t -v ON_ERROR_STOP=1 -f "$(dirname "$0")/pruebas_0002.sql" 2>&1 ||
 echo "$R0002" | grep -q "PRUEBAS 0002: OK" && echo "PRUEBAS 0002: OK" || { echo "$R0002" | grep -E "ERROR|assert" ; echo "PRUEBAS 0002: FALLA"; su postgres -c "$PGBIN/pg_ctl -D $DIR stop >/dev/null"; exit 1; }
 RINA=$($P -d t -v ON_ERROR_STOP=1 -f "$(dirname "$0")/pruebas_inalterabilidad.sql" 2>&1 || true)
 echo "$RINA" | grep -q "PRUEBAS INALTERABILIDAD: OK" && ! echo "$RINA" | grep -q ERROR && echo "PRUEBAS INALTERABILIDAD: OK" || { echo "$RINA" | grep -E "ERROR" ; echo "PRUEBAS INALTERABILIDAD: FALLA"; su postgres -c "$PGBIN/pg_ctl -D $DIR stop >/dev/null"; exit 1; }
+R0003=$($P -d t -v ON_ERROR_STOP=1 -f "$(dirname "$0")/pruebas_0003.sql" 2>&1 || true)
+echo "$R0003" | grep -q "PRUEBAS 0003: OK" && echo "PRUEBAS 0003: OK" || { echo "$R0003" | grep -E "ERROR|assert" ; echo "PRUEBAS 0003: FALLA"; su postgres -c "$PGBIN/pg_ctl -D $DIR stop >/dev/null"; exit 1; }
 su postgres -c "$PGBIN/pg_ctl -D $DIR stop >/dev/null"
 [ "$ERR" = "5" ] && echo "PRUEBAS SQL: OK" || { echo "PRUEBAS SQL: REVISAR"; exit 1; }

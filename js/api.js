@@ -39,10 +39,15 @@ function errorSinSenal() {
 }
 
 // Corta la espera: en un parque con "señal fantasma" la petición puede quedarse colgada.
+// Si el teléfono avisa que perdió la señal, se deja de esperar en ese momento (la pantalla no se queda congelada).
 function conLimite(promesa, ms = LIMITE_MS) {
-  let reloj;
-  const limite = new Promise((_, rechazar) => { reloj = setTimeout(() => rechazar(errorSinSenal()), ms); });
-  return Promise.race([promesa, limite]).finally(() => clearTimeout(reloj));
+  let reloj, alPerderSenal;
+  const limite = new Promise((_, rechazar) => {
+    reloj = setTimeout(() => rechazar(errorSinSenal()), ms);
+    alPerderSenal = () => rechazar(errorSinSenal());
+    window.addEventListener('offline', alPerderSenal);
+  });
+  return Promise.race([promesa, limite]).finally(() => { clearTimeout(reloj); window.removeEventListener('offline', alPerderSenal); });
 }
 
 function sesionGuardada() {
@@ -200,4 +205,59 @@ export async function miJornadaDiaria(miembroId, desdeFecha, hastaFecha) {
     .order('fecha'));
   if (error) throw error;
   return data || [];
+}
+
+// ---------- Incidencias (HU-28/29) ----------
+
+const CAMPOS_INCIDENCIA = 'id, miembro_id, tipo, evento_original_id, tipo_evento_propuesto, bloque_propuesto, hora_propuesta, motivo, estado, comentario_resolucion, creada_en, resuelta_en';
+
+// Solicitudes de corrección de la persona (las más recientes primero).
+export async function misIncidencias(miembroId) {
+  if (navigator.onLine === false) throw errorSinSenal();
+  const { data, error } = await conLimite(cliente
+    .from('incidencias')
+    .select(CAMPOS_INCIDENCIA)
+    .eq('miembro_id', miembroId)
+    .order('creada_en', { ascending: false })
+    .limit(100));
+  if (error) throw error;
+  return data || [];
+}
+
+// El asesor solicita una corrección. El id lo genera el teléfono: reintentar no duplica.
+// La organización, el estado y quién resuelve los fija el servidor (trigger controlar_incidencia).
+export async function solicitarIncidencia(fila) {
+  if (navigator.onLine === false) throw errorSinSenal();
+  const { error } = await conLimite(cliente
+    .from('incidencias')
+    .upsert(fila, { onConflict: 'id', ignoreDuplicates: true }), 15000);
+  if (error) throw error;
+}
+
+// Panel: incidencias de la organización con el nombre de la persona y la checada original.
+export async function incidenciasDeOrganizacion(organizacionId, { estado, desdeISO } = {}) {
+  let consulta = cliente
+    .from('incidencias')
+    .select(`${CAMPOS_INCIDENCIA}, persona:miembros!miembro_id(nombre_completo), resolutor:miembros!resuelta_por(nombre_completo), original:eventos_jornada!evento_original_id(tipo, bloque, hora_efectiva, motivos_revision)`)
+    .eq('organizacion_id', organizacionId);
+  if (estado) consulta = consulta.eq('estado', estado);
+  else consulta = consulta.neq('estado', 'pendiente');
+  if (desdeISO) consulta = consulta.gte('creada_en', desdeISO);
+  const { data, error } = await conLimite(consulta.order('creada_en', { ascending: !!estado }).limit(200), 15000);
+  if (error) throw error;
+  return data || [];
+}
+
+// Coordinación aprueba o rechaza. El servidor impide aprobar las propias y resolver dos veces;
+// al aprobar crea el evento corregido (origen = 'incidencia').
+export async function resolverIncidencia(id, estado, comentario) {
+  const { data, error } = await conLimite(cliente
+    .from('incidencias')
+    .update({ estado, comentario_resolucion: comentario || null })
+    .eq('id', id)
+    .eq('estado', 'pendiente')
+    .select('id, estado'), 15000);
+  if (error) throw error;
+  if (!data?.length) throw new Error('La incidencia ya no está pendiente o no tienes permiso para resolverla.');
+  return data[0];
 }

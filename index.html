@@ -131,6 +131,68 @@
       </div>
     </section>
 
+    <!-- Solicitar corrección (HU-28) -->
+    <section class="pantalla-checada" id="pantalla-correccion" hidden>
+      <header class="encabezado">
+        <div>
+          <p class="encabezado__org">Incidencia</p>
+          <h1 class="encabezado__titulo">Solicitar corrección</h1>
+        </div>
+      </header>
+      <form class="contenido formulario" id="form-correccion" novalidate>
+        <p class="secundario chico">Nada de lo registrado se borra: coordinación revisa tu solicitud y, si la aprueba, se agrega la checada corregida.</p>
+        <fieldset class="campo campo--grupo">
+          <legend class="campo__etiqueta">¿Qué pasó?</legend>
+          <div class="lista-opciones" id="correccion-tipos">
+            <label class="opcion opcion--radio"><input type="radio" name="correccion-tipo" value="omision"><span class="opcion__titulo">Olvidé checar</span><span class="opcion__detalle">Falta una entrada, salida o pausa</span></label>
+            <label class="opcion opcion--radio"><input type="radio" name="correccion-tipo" value="correccion_hora"><span class="opcion__titulo">La hora quedó mal</span><span class="opcion__detalle">Checaste tarde o antes de tiempo</span></label>
+            <label class="opcion opcion--radio"><input type="radio" name="correccion-tipo" value="fuera_geocerca"><span class="opcion__titulo">Salió fuera de zona</span><span class="opcion__detalle">Estabas en el sitio, pero el GPS te ubicó fuera</span></label>
+            <label class="opcion opcion--radio"><input type="radio" name="correccion-tipo" value="otro"><span class="opcion__titulo">Otro</span><span class="opcion__detalle">Cualquier otra aclaración</span></label>
+          </div>
+        </fieldset>
+        <label class="campo" id="correccion-fecha-campo" hidden>
+          <span class="campo__etiqueta">Día</span>
+          <input class="campo__entrada mono" id="correccion-fecha" type="date">
+        </label>
+        <fieldset class="campo campo--grupo" id="correccion-original-campo" hidden>
+          <legend class="campo__etiqueta">¿Cuál checada?</legend>
+          <p class="secundario chico" id="correccion-original-estado" role="status"></p>
+          <div class="lista-opciones" id="correccion-originales"></div>
+        </fieldset>
+        <label class="campo" id="correccion-checada-campo" hidden>
+          <span class="campo__etiqueta">Checada que faltó</span>
+          <select class="campo__entrada" id="correccion-checada">
+            <option value="">Elige una opción</option>
+            <option value="inicio_bloque:escritorio">Inicio de bloque de escritorio</option>
+            <option value="fin_bloque:escritorio">Fin de bloque de escritorio</option>
+            <option value="inicio_bloque:campo">Inicio de bloque de campo</option>
+            <option value="fin_bloque:campo">Fin de bloque de campo</option>
+            <option value="inicio_pausa:">Inicio de comida/pausa</option>
+            <option value="fin_pausa:">Regreso de comida/pausa</option>
+          </select>
+        </label>
+        <label class="campo" id="correccion-hora-campo" hidden>
+          <span class="campo__etiqueta" id="correccion-hora-etiqueta">Hora correcta</span>
+          <input class="campo__entrada mono" id="correccion-hora" type="time">
+        </label>
+        <label class="campo">
+          <span class="campo__etiqueta">Motivo (obligatorio)</span>
+          <textarea class="campo__entrada" id="correccion-motivo" rows="3" maxlength="500" placeholder="Ej.: se me descargó el teléfono al salir del parque"></textarea>
+        </label>
+        <div class="aviso aviso--critico" id="correccion-error" role="alert" hidden></div>
+        <button class="boton-principal" type="submit" id="correccion-enviar"><span class="boton-principal__texto">Enviar solicitud</span></button>
+        <button class="boton boton--ancho" type="button" id="correccion-cancelar">Cancelar</button>
+      </form>
+      <div class="contenido" id="correccion-resultado" hidden>
+        <article class="tarjeta resultado">
+          <p class="resultado__icono" aria-hidden="true">✓</p>
+          <h2 class="resultado__titulo">Solicitud enviada</h2>
+          <p class="secundario" id="correccion-resultado-detalle">Coordinación la revisará. Verás la respuesta en Historial › Mis solicitudes.</p>
+        </article>
+        <button class="boton-principal" type="button" id="correccion-listo"><span class="boton-principal__texto">Listo</span></button>
+      </div>
+    </section>
+
     <div class="pantalla-app" id="pantalla-app" hidden>
     <header class="encabezado">
       <div>
@@ -213,6 +275,12 @@
           <ul class="lista" id="semana-dias"></ul>
           <p class="secundario chico" id="semana-nota" hidden></p>
         </article>
+        <article class="tarjeta" aria-labelledby="solicitudes-titulo">
+          <p class="tarjeta__etiqueta" id="solicitudes-titulo">Mis solicitudes de corrección</p>
+          <ul class="lista" id="solicitudes-lista"></ul>
+          <p class="secundario chico" id="solicitudes-nota"></p>
+          <button class="boton boton--ancho" type="button" id="historial-solicitar" data-accion="solicitar_correccion">Solicitar corrección</button>
+        </article>
         <article class="tarjeta"><p class="secundario">La descarga de tu registro (CSV y PDF) llega en el siguiente sprint.</p></article>
       </section>
 
@@ -227,6 +295,8 @@
             <li class="lista__fila"><span>Versión de la app</span><span class="mono" id="version-app">—</span></li>
           </ul>
         </article>
+        <button class="boton boton--ancho" type="button" id="perfil-solicitar" data-accion="solicitar_correccion">Solicitar corrección</button>
+        <a class="boton boton--ancho" id="perfil-panel" href="panel.html" hidden>Abrir panel de coordinación</a>
         <button class="boton boton--ancho" type="button" id="perfil-cambiar-org" hidden>Cambiar de organización</button>
         <button class="boton boton--tierra boton--ancho" type="button" id="perfil-salir">Cerrar sesión</button>
       </section>

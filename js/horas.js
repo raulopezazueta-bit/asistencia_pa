@@ -4,6 +4,7 @@
 // sumando lo guardado sin enviar, y se marcan "por enviar".
 import * as api from './api.js';
 import * as jornada from './jornada.js';
+import * as incidencias from './incidencias.js';
 import { leerMeta, guardarMeta, leerTodo } from './almacen.js';
 import { partesLocales, rangoDelDia, horarioDelDia, resumenDelDia, diasDeLaSemana } from './reglas.js';
 
@@ -31,12 +32,14 @@ export async function semana(perfil, ahora = new Date()) {
   const desde = rangoDelDia(mediodia(lunes), zona).desde;
   const hasta = rangoDelDia(mediodia(fechas[6]), zona).hasta;
 
-  const [oficial, delServidor, locales, horarios] = await Promise.all([
+  const [oficial, delServidor, locales, horarios, solicitudes] = await Promise.all([
     conCopia('semana_oficial', perfil.miembroId, lunes, () => api.miJornadaDiaria(perfil.miembroId, lunes, fechas[6])),
     conCopia('semana_eventos', perfil.miembroId, lunes, () => api.misEventos(perfil.miembroId, desde.toISOString(), hasta.toISOString())),
     leerTodo('eventos_locales').catch(() => []),
-    jornada.horarios(perfil)
+    jornada.horarios(perfil),
+    incidencias.mias(perfil)
   ]);
+  const corregidas = incidencias.reemplazadas(solicitudes.filas);
   const filasHorario = horarios;
   const porFecha = new Map(oficial.filas.map((f) => [String(f.fecha).slice(0, 10), f]));
 
@@ -45,6 +48,7 @@ export async function semana(perfil, ahora = new Date()) {
   const idsServidor = new Set();
   for (const e of delServidor.filas) {
     idsServidor.add(e.id);
+    if (corregidas.has(e.id)) continue;   // igual que la vista oficial: la hora corregida reemplaza a la original
     const f = partesLocales(e.hora_efectiva, zona).fecha;
     eventosDia.get(f)?.push({ id: e.id, tipo: e.tipo, bloque: e.bloque, modalidad: e.modalidad, hora: e.hora_efectiva, estadoRevision: e.estado_revision });
   }

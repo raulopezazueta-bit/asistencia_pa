@@ -2,6 +2,7 @@
 // (enviados al servidor + capturados en el teléfono), listos para js/reglas.js.
 import * as api from './api.js';
 import * as sitios from './sitios.js';
+import * as incidencias from './incidencias.js';
 import { leerMeta, guardarMeta, leerTodo } from './almacen.js';
 import { horarioDelDia, rangoDelDia } from './reglas.js';
 
@@ -49,18 +50,20 @@ async function eventosLocales(perfil, rango) {
 export async function cargarHoy(perfil, ahora = new Date()) {
   const zona = perfil.organizacion.zonaHoraria;
   const rango = rangoDelDia(ahora, zona);
-  const [filasHorario, servidor, locales, catalogo] = await Promise.all([
-    horarios(perfil), eventosServidor(perfil, rango), eventosLocales(perfil, rango), sitios.todos(perfil.organizacionId)
+  const [filasHorario, servidor, locales, catalogo, solicitudes] = await Promise.all([
+    horarios(perfil), eventosServidor(perfil, rango), eventosLocales(perfil, rango), sitios.todos(perfil.organizacionId), incidencias.mias(perfil)
   ]);
+  const corregidas = incidencias.reemplazadas(solicitudes.filas);   // su hora la corrigió una incidencia aprobada
   const nombreSitio = new Map(catalogo.map((s) => [s.id, s.nombre]));
   const claveSitio = new Map(catalogo.map((s) => [s.id, s.clave]));
   const porId = new Map();
   for (const e of servidor.filas) {
+    if (corregidas.has(e.id)) continue;
     porId.set(e.id, { id: e.id, tipo: e.tipo, bloque: e.bloque, modalidad: e.modalidad, hora: e.hora_efectiva,
-      sitioId: e.sitio_id, sitioNombre: nombreSitio.get(e.sitio_id), sitioClave: claveSitio.get(e.sitio_id), estadoRevision: e.estado_revision, enviado: true });
+      sitioId: e.sitio_id, sitioNombre: nombreSitio.get(e.sitio_id), sitioClave: claveSitio.get(e.sitio_id), estadoRevision: e.estado_revision, origen: e.origen, enviado: true });
   }
   for (const e of locales) {
-    if (porId.has(e.id)) continue;   // ya llegó al servidor: manda la hora del servidor
+    if (porId.has(e.id) || corregidas.has(e.id)) continue;   // ya llegó al servidor: manda la hora del servidor
     porId.set(e.id, { id: e.id, tipo: e.tipo, bloque: e.bloque, modalidad: e.modalidad, hora: e.hora_dispositivo,
       sitioId: e.sitio_id, sitioNombre: nombreSitio.get(e.sitio_id), sitioClave: claveSitio.get(e.sitio_id), estadoRevision: null, enviado: false });
   }

@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="es-MX">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Panel de coordinación · Asistencia</title>
+  <meta name="description" content="Panel de coordinación del registro de jornada.">
+  <meta name="theme-color" content="#14503A">
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
+  <link rel="preload" href="fonts/ibm-plex-sans-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="fonts/ibm-plex-sans-latin-600-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="css/app.css">
+  <script src="vendor/supabase.js" defer></script>
+  <script type="module" src="js/panel.js"></script>
+</head>
+<body>
+  <div class="app app--panel">
+    <section class="pantalla-centrada" id="panel-cargando" aria-busy="true">
+      <img class="logo" src="assets/icon-192.png" alt="" width="96" height="96">
+      <p class="secundario">Cargando…</p>
+    </section>
+
+    <section class="pantalla-centrada" id="panel-sin-acceso" hidden>
+      <img class="logo" src="assets/icon-192.png" alt="" width="96" height="96">
+      <p id="panel-sin-acceso-texto">Esta página es solo para coordinación.</p>
+      <a class="boton boton--lleno" href="index.html">Ir a la app</a>
+    </section>
+
+    <div id="panel" hidden>
+      <header class="encabezado">
+        <div>
+          <p class="encabezado__org" id="panel-org">Panel de coordinación</p>
+          <h1 class="encabezado__titulo">Panel de coordinación</h1>
+          <p class="secundario chico" id="panel-persona"></p>
+        </div>
+        <a class="boton boton--chico" href="index.html">Ir a la app</a>
+      </header>
+
+      <main class="contenido">
+        <div class="aviso" id="panel-aviso" role="status" hidden></div>
+
+        <!-- Incidencias (HU-29) -->
+        <section class="vista" aria-labelledby="incidencias-titulo">
+          <div class="panel__cabecera">
+            <h2 class="panel__titulo" id="incidencias-titulo">Incidencias</h2>
+            <div class="panel__filtros" role="tablist" aria-label="Filtrar incidencias">
+              <button class="boton boton--chico" type="button" role="tab" id="filtro-pendientes" aria-selected="true">Por resolver <span id="contador-pendientes" class="mono"></span></button>
+              <button class="boton boton--chico" type="button" role="tab" id="filtro-resueltas" aria-selected="false">Resueltas (30 días)</button>
+            </div>
+          </div>
+          <p class="secundario chico">Aprobar agrega la checada corregida (nada se borra). Rechazar exige explicar el motivo a la persona. Nadie puede resolver sus propias solicitudes.</p>
+          <div class="panel__lista" id="incidencias-lista" aria-live="polite"></div>
+          <p class="secundario" id="incidencias-vacio" hidden></p>
+        </section>
+      </main>
+    </div>
+  </div>
+</body>
+</html>
