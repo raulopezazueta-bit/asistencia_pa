@@ -168,7 +168,9 @@ La función es la única pieza que usa la llave secreta (`service_role`). Supaba
 llave secreta en ningún lado**.
 
 1. En Supabase: **Edge Functions → Deploy a new function → Via Editor**.
-2. Nombre de la función: `alta-persona` (exacto, con guion).
+2. Nombre de la función: `alta-persona` (exacto, con guion). **Escríbelo antes de publicar**: el editor propone un
+   nombre inventado (p. ej. `quick-task`) y, una vez publicada, cambiar el nombre visible NO cambia la dirección
+   (debe terminar en `/functions/v1/alta-persona`). Si quedó con otro nombre, crea la función de nuevo y borra la otra.
 3. El editor trae un archivo `index.ts` de ejemplo: borra todo su contenido y pega el de
    `supabase/functions/alta-persona/index_un_archivo.ts` de este repositorio (es la función completa en un solo
    archivo; no hace falta agregar otro).
