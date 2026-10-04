@@ -1,4 +1,4 @@
-// Panel de coordinación (panel.html): tablero del día (HU-27), bandeja de revisión (HU-23) e incidencias (HU-29).
+// Panel de coordinación (panel.html): tablero del día (HU-27), bandeja de revisión (HU-23), reportes (HU-31) e incidencias (HU-29).
 // Usa la misma sesión que la app del asesor (mismo teléfono o computadora). Necesita señal.
 import * as sesion from './sesion.js';
 import * as api from './api.js';
@@ -6,7 +6,9 @@ import * as sitios from './sitios.js';
 import { TIPOS, ESTADOS, nombreChecada } from './incidencias.js';
 import { tableroDelDia } from './tablero.js';
 import { armarBandeja, MOTIVOS } from './bandeja.js';
-import { rangoDelDia, diasDeLaSemana, formatoHoras } from './reglas.js';
+import { csvNomina } from './reporte.js';
+import { cargarReporte } from './reporte_datos.js';
+import { rangoDelDia, diasDeLaSemana, formatoHoras, partesLocales } from './reglas.js';
 
 const $ = (id) => document.getElementById(id);
 const estado = { perfil: null, filtro: 'pendiente', bandeja: 'pendientes' };
@@ -57,6 +59,7 @@ async function iniciar() {
   $('hoy-actualizar').addEventListener('click', () => { pintarHoy(); pintarBandeja(); pintar(); });
   // Se actualiza solo cada 2 minutos mientras el panel está a la vista (la bandeja no, para no borrar lo que se escribe)
   setInterval(() => { if (document.visibilityState === 'visible') { pintarHoy(); pintar(); } }, 120_000);
+  prepararReportes();
   await sitios.actualizar(r.perfil).catch(() => null);   // nombres de parques (una descarga al día, compartida con la app)
   await Promise.all([pintarHoy(), pintarBandeja(), pintar()]);
 }
@@ -297,6 +300,61 @@ function tarjetaRevision({ evento: e, revision, incidenciaAprobada, incidenciaPe
   validar.addEventListener('click', () => decidir('validada'));
   observar.addEventListener('click', () => decidir('observada'));
   return art;
+}
+
+// ---------- Reportes (HU-31) ----------
+function periodoElegido() {
+  const desde = $('reporte-desde').value, hasta = $('reporte-hasta').value;
+  if (!desde || !hasta) return { error: 'Elige las dos fechas del periodo.' };
+  if (desde > hasta) return { error: 'La fecha "Desde" debe ser anterior o igual a "Hasta".' };
+  return { desde, hasta, miembro: $('reporte-persona').value };
+}
+
+async function prepararReportes() {
+  const hoy = partesLocales(new Date(), zona()).fecha;
+  $('reporte-desde').value = `${hoy.slice(0, 8)}01`;   // del día 1 del mes a hoy
+  $('reporte-hasta').value = hoy;
+  const err = $('reporte-error');
+  const mostrar = (t) => { err.textContent = t || ''; err.hidden = !t; };
+  $('form-reporte').addEventListener('submit', (ev) => {
+    ev.preventDefault();
+    const p = periodoElegido();
+    if (p.error) return mostrar(p.error);
+    mostrar('');
+    const q = new URLSearchParams({ desde: p.desde, hasta: p.hasta, ...(p.miembro ? { miembro: p.miembro } : {}) });
+    window.open(`reporte.html?${q}`, '_blank');
+  });
+  $('reporte-csv').addEventListener('click', async () => {
+    const p = periodoElegido();
+    if (p.error) return mostrar(p.error);
+    mostrar('');
+    const boton = $('reporte-csv');
+    boton.disabled = true;
+    try {
+      const personas = await cargarReporte(estado.perfil, p.desde, p.hasta, p.miembro);
+      const blob = new Blob([csvNomina(personas, estado.perfil.organizacion.nombre)], { type: 'text/csv;charset=utf-8' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `jornada_${estado.perfil.organizacion.slug}_${p.desde}_${p.hasta}.csv`;
+      document.body.append(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 10_000);
+    } catch (e) {
+      mostrar(api.esErrorDeRed(e) ? 'Sin señal: no se pudo preparar el archivo.' : `No se pudo preparar el archivo: ${e.message}`);
+    } finally {
+      boton.disabled = false;
+    }
+  });
+  try {
+    const miembros = await api.miembrosDeOrganizacion(estado.perfil.organizacionId);
+    for (const m of miembros) {
+      const o = document.createElement('option');
+      o.value = m.id;
+      o.textContent = m.nombre_completo;
+      $('reporte-persona').append(o);
+    }
+  } catch { /* sin señal: queda "Todas las personas" */ }
 }
 
 // ---------- Incidencias (HU-29) ----------

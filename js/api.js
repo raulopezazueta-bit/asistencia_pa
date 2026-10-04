@@ -292,7 +292,7 @@ export async function eventosDeOrganizacion(organizacionId, desdeISO, hastaISO) 
   for (let desde = 0; ; desde += PAGINA) {
     const { data, error } = await conLimite(cliente
       .from('eventos_jornada')
-      .select('id, miembro_id, tipo, bloque, modalidad, hora_efectiva, sitio_id, dentro_geocerca, estado_revision, origen')
+      .select('id, miembro_id, tipo, bloque, modalidad, hora_efectiva, sitio_id, dentro_geocerca, estado_revision, motivos_revision, origen')
       .eq('organizacion_id', organizacionId)
       .gte('hora_efectiva', desdeISO)
       .lt('hora_efectiva', hastaISO)
@@ -371,4 +371,27 @@ export async function urlSelfie(ruta) {
   const { data, error } = await conLimite(cliente.storage.from('selfies').createSignedUrl(ruta, 60), 15000);
   if (error) throw error;
   return data.signedUrl;
+}
+
+// ---------- Reportes (HU-31) ----------
+
+// Días oficiales (vista v_jornada_diaria) de la organización entre dos fechas locales (AAAA-MM-DD), en páginas.
+export async function jornadaDeOrganizacion(organizacionId, desdeFecha, hastaFecha) {
+  const PAGINA = 1000;
+  const filas = [];
+  for (let desde = 0; ; desde += PAGINA) {
+    const { data, error } = await conLimite(cliente
+      .from('v_jornada_diaria')
+      .select('miembro_id, fecha, inicio_jornada, fin_jornada, bloques, minutos_pausa, minutos_efectivos, jornada_abierta, bloque_inconsistente, con_revision')
+      .eq('organizacion_id', organizacionId)
+      .gte('fecha', desdeFecha)
+      .lte('fecha', hastaFecha)
+      .order('fecha')
+      .order('miembro_id')
+      .range(desde, desde + PAGINA - 1), 20000);
+    if (error) throw error;
+    filas.push(...data);
+    if (data.length < PAGINA) break;
+  }
+  return filas;
 }

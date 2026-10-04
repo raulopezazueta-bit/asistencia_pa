@@ -304,26 +304,43 @@ export async function simularSupabase(page, { sitiosPA = 782, sitiosDemo = 3, ev
     if (url.pathname === '/rest/v1/v_jornada_diaria' && req.method() === 'GET') {
       const u = usuarioDeToken(req);
       if (!u) return json(route, 401, { code: 'PGRST301', message: 'JWT expired' });
-      const miembro = url.searchParams.get('miembro_id')?.slice(3);
-      if (!u.miembros.some((m) => m.id === miembro)) return json(route, 200, []);
       const zona = 'America/Mazatlan';
-      const porFecha = new Map();
+      const miembro = url.searchParams.get('miembro_id')?.slice(3);
+      const org = url.searchParams.get('organizacion_id')?.slice(3);
+      const orgsCoord = u.miembros.filter((m) => m.activo && m.rol !== 'asesor').map((m) => ORGS[m.org].id);
+      let visibles;
+      if (miembro) visibles = u.miembros.some((m) => m.id === miembro) ? [miembro] : [];
+      else visibles = orgsCoord.includes(org) ? [...new Set(eventos.filter((e) => (e.organizacion_id || ORGS.pa.id) === org).map((e) => e.miembro_id))] : [];
       const corregidas = new Set(incidencias.filter((i) => i.estado === 'aprobada' && i.tipo === 'correccion_hora').map((i) => i.evento_original_id));
-      for (const e of eventos.filter((x) => x.miembro_id === miembro && !corregidas.has(x.id))) {
-        const f = partesLocales(e.hora_efectiva, zona).fecha;
-        if (!porFecha.has(f)) porFecha.set(f, []);
-        porFecha.get(f).push({ id: e.id, tipo: e.tipo, bloque: e.bloque, hora: e.hora_efectiva, estadoRevision: e.estado_revision });
-      }
       const gte = url.searchParams.getAll('fecha').find((x) => x.startsWith('gte.'))?.slice(4);
       const lte = url.searchParams.getAll('fecha').find((x) => x.startsWith('lte.'))?.slice(4);
-      const filas = [...porFecha.entries()]
-        .filter(([f, evs]) => (!gte || f >= gte) && (!lte || f <= lte) && evs.some((e) => e.bloque))
-        .map(([fecha, evs]) => {
+      const filas = [];
+      for (const mid of visibles) {
+        const porFecha = new Map();
+        for (const e of eventos.filter((x) => x.miembro_id === mid && !corregidas.has(x.id))) {
+          const f = partesLocales(e.hora_efectiva, zona).fecha;
+          if (!porFecha.has(f)) porFecha.set(f, []);
+          porFecha.get(f).push({ id: e.id, tipo: e.tipo, bloque: e.bloque, hora: e.hora_efectiva, estadoRevision: e.estado_revision });
+        }
+        for (const [fecha, evs] of porFecha) {
+          if ((gte && fecha < gte) || (lte && fecha > lte) || !evs.some((e) => e.bloque)) continue;
           const r = resumenDelDia({ eventos: evs, ahora: rangoDelDia(new Date(`${fecha}T12:00:00Z`), zona).desde, zona });
-          return { fecha, minutos_efectivos: r.minutosEfectivos, minutos_pausa: 0, bloque_inconsistente: false,
-            jornada_abierta: r.filas.some((x) => x.tipo === 'bloque' && x.estado === 'abierto'), con_revision: evs.some((e) => e.estadoRevision === 'revisar') };
-        })
-        .sort((a, b) => a.fecha.localeCompare(b.fecha));
+          // Igual que la vista: primer inicio y último fin por bloque
+          const bloques = {};
+          for (const e of [...evs].sort((a, b) => new Date(a.hora) - new Date(b.hora))) {
+            if (!e.bloque || !['inicio_bloque', 'fin_bloque'].includes(e.tipo)) continue;
+            bloques[e.bloque] = bloques[e.bloque] || { inicio: null, fin: null };
+            if (e.tipo === 'inicio_bloque' && !bloques[e.bloque].inicio) bloques[e.bloque].inicio = e.hora;
+            if (e.tipo === 'fin_bloque') bloques[e.bloque].fin = e.hora;
+          }
+          const inicios = Object.values(bloques).map((b) => b.inicio).filter(Boolean).sort();
+          const fines = Object.values(bloques).map((b) => b.fin).filter(Boolean).sort();
+          filas.push({ miembro_id: mid, fecha, inicio_jornada: inicios[0] || null, fin_jornada: fines.at(-1) || null, bloques,
+            minutos_efectivos: r.minutosEfectivos, minutos_pausa: 0, bloque_inconsistente: false,
+            jornada_abierta: Object.values(bloques).some((b) => !b.inicio || !b.fin), con_revision: evs.some((e) => e.estadoRevision === 'revisar') });
+        }
+      }
+      filas.sort((a, b) => a.fecha.localeCompare(b.fecha) || a.miembro_id.localeCompare(b.miembro_id));
       return json(route, 200, filas);
     }
 

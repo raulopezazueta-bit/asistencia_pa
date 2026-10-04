@@ -22,8 +22,9 @@
 // asis-2026-10-04-v17 · HU-28/29 incidencias: el asesor solicita corrección (olvido, hora, fuera de zona, otro) y coordinación aprueba o rechaza en panel.html (requiere migración 0003).
 // asis-2026-10-04-v18 · HU-27 panel de coordinación: tarjetas del día (en jornada, % dentro de zona, incidencias, parques) y tabla por persona.
 // asis-2026-10-04-v19 · HU-23 bandeja de revisión: checadas marcadas con motivos, lugar y selfie (enlace de 60 s); coordinación valida u observa (requiere migración 0004).
+// asis-2026-10-04-v20 · HU-31 reportes: página para la autoridad (imprimir o guardar PDF) por periodo y persona, y CSV para nómina desde el panel.
 
-const CACHE_VERSION = 'asis-2026-10-04-v19';
+const CACHE_VERSION = 'asis-2026-10-04-v20';
 
 const CASCARON = [
   './',
@@ -50,6 +51,11 @@ const CASCARON = [
   './js/panel.js',
   './js/tablero.js',
   './js/bandeja.js',
+  './reporte.html',
+  './css/reporte.css',
+  './js/reporte.js',
+  './js/reporte_datos.js',
+  './js/reporte_pagina.js',
   './vendor/supabase.js',
   './fonts/ibm-plex-sans-latin-400-normal.woff2',
   './fonts/ibm-plex-sans-latin-500-normal.woff2',

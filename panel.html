@@ -80,6 +80,24 @@
           <p class="secundario" id="bandeja-vacio" hidden></p>
         </section>
 
+        <!-- Reportes (HU-31) -->
+        <section class="vista" aria-labelledby="reportes-titulo">
+          <h2 class="panel__titulo" id="reportes-titulo">Reportes</h2>
+          <form class="tarjeta reportes" id="form-reporte" novalidate>
+            <label class="campo"><span class="campo__etiqueta">Desde</span><input class="campo__entrada mono" type="date" id="reporte-desde" required></label>
+            <label class="campo"><span class="campo__etiqueta">Hasta</span><input class="campo__entrada mono" type="date" id="reporte-hasta" required></label>
+            <label class="campo reportes__persona"><span class="campo__etiqueta">Persona</span>
+              <select class="campo__entrada" id="reporte-persona"><option value="">Todas las personas</option></select>
+            </label>
+            <div class="reportes__botones">
+              <button class="boton boton--lleno" type="submit" id="reporte-ver">Reporte para la autoridad (imprimir o PDF)</button>
+              <button class="boton" type="button" id="reporte-csv">Descargar CSV para nómina</button>
+            </div>
+            <p class="aviso aviso--critico reportes__error" id="reporte-error" role="alert" hidden></p>
+          </form>
+          <p class="secundario chico">El reporte usa la vista oficial de horas (la misma del servidor) y señala revisiones, incidencias, bloques sin cerrar y días fuera de horario. El CSV trae una fila por persona y día; las horas extra por semana llegan en el Sprint 4.</p>
+        </section>
+
         <!-- Incidencias (HU-29) -->
         <section class="vista" aria-labelledby="incidencias-titulo">
           <div class="panel__cabecera">

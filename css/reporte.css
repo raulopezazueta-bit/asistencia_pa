@@ -1,0 +1,37 @@
+/* Reporte para la autoridad (HU-31): pensado para imprimir en carta u oficio y guardar como PDF. */
+.reporte-cuerpo { background: var(--blanco); max-width: 1000px; margin: 0 auto; padding: 16px; color: var(--grafito); }
+.reporte__barra { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 12px; }
+.reporte__estado { margin: 24px 0; }
+.reporte__encabezado { border-bottom: 2px solid var(--verde); padding-bottom: 12px; margin-bottom: 16px; }
+.reporte__norma { font-size: 13px; color: var(--follaje); }
+.reporte__org { font-size: 22px; font-weight: 600; margin: 4px 0; }
+.reporte__datos { font-size: 13px; }
+.reporte__meta { display: flex; flex-wrap: wrap; gap: 4px 24px; margin: 8px 0 0; font-size: 13px; }
+.reporte__meta div { display: flex; gap: 6px; }
+.reporte__meta dt { color: var(--follaje); }
+.reporte__meta dd { margin: 0; font-family: var(--mono); }
+.reporte__persona { margin-bottom: 28px; break-inside: auto; }
+.reporte__persona + .reporte__persona { break-before: page; }
+.reporte__persona h2 { font-size: 17px; font-weight: 600; }
+.reporte__persona-datos { font-size: 13px; color: var(--follaje); margin-bottom: 8px; }
+.reporte__tabla { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.reporte__tabla th, .reporte__tabla td { border: 1px solid #C9C4B6; padding: 5px 6px; text-align: left; vertical-align: top; }
+.reporte__tabla th { background: #ECE9E0; font-weight: 500; }
+.reporte__tabla thead { display: table-header-group; }   /* repite el encabezado en cada página */
+.reporte__tabla tr { break-inside: avoid; }
+.reporte__tabla .num { text-align: right; font-family: var(--mono); white-space: nowrap; }
+.reporte__tabla .hora { font-family: var(--mono); white-space: nowrap; }
+.reporte__tabla tfoot td { font-weight: 600; background: #F6F4EE; }
+.reporte__marcas { margin: 0; padding-left: 16px; }
+.reporte__firmas { display: flex; gap: 48px; margin-top: 40px; font-size: 13px; }
+.reporte__firmas div { flex: 1; border-top: 1px solid var(--grafito); padding-top: 4px; text-align: center; }
+.reporte__pie { font-size: 11.5px; color: var(--follaje); border-top: 1px solid #C9C4B6; padding-top: 8px; margin-top: 16px; }
+@media (max-width: 599px) { .reporte__tabla { font-size: 11px; } .reporte__tabla th, .reporte__tabla td { padding: 3px; } }
+@media print {
+  @page { size: letter; margin: 14mm 12mm; }
+  .no-imprimir { display: none !important; }
+  .reporte-cuerpo { max-width: none; padding: 0; }
+  body { background: #FFFFFF; }
+}
+.reporte__marco { overflow-x: auto; }
+.reporte__tabla th.num { font-family: var(--sans); }

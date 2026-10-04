@@ -329,3 +329,11 @@ textarea.campo__entrada { resize: vertical; min-height: 88px; }
 /* Bandeja de revisión (HU-23) */
 .revision__motivos { display: flex; flex-wrap: wrap; gap: 6px; }
 .revision__selfie { width: 100%; max-width: 240px; aspect-ratio: 4 / 3; object-fit: cover; border-radius: var(--radio-chico); background: #2B302D; }
+
+/* Reportes (HU-31) */
+.reportes { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr)); gap: 12px; align-items: end; }
+.reportes__persona { grid-column: span 2; }
+.reportes__botones, .reportes__error { grid-column: 1 / -1; }
+.reportes__botones { display: flex; flex-wrap: wrap; gap: 8px; }
+.reportes__botones > * { flex: 1 1 240px; }
+@media (max-width: 479px) { .reportes__persona { grid-column: 1 / -1; } }
