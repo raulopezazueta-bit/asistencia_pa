@@ -29,8 +29,9 @@
 // asis-2026-10-04-v24 · HU-09 personas desde el panel (administración): alta con contraseña temporal, rol, horario con historia, baja que bloquea el acceso y reactivación; cambio de contraseña en la app (requiere publicar la función alta-persona).
 // asis-2026-10-04-v25 · HU-09 ajuste: si la función alta-persona no responde, el panel explica la causa (ya no dice "sin señal"); función en un solo archivo para publicarla más fácil.
 // asis-2026-10-04-v26 · HU-09 ajuste: la función alta-persona acepta las llaves nuevas de Supabase y tiene diagnóstico al abrir su dirección en el navegador.
+// asis-2026-10-04-v27 · HU-35 instalación: guía de una página con código QR (instalar.html, imprimible), botón "Instalar en este teléfono" en Perfil (Android) y enlaces a la guía.
 
-const CACHE_VERSION = 'asis-2026-10-04-v26';
+const CACHE_VERSION = 'asis-2026-10-04-v27';
 
 const CASCARON = [
   './',
@@ -65,6 +66,10 @@ const CASCARON = [
   './js/recordatorio.js',
   './js/personas.js',
   './js/horario_semanal.js',
+  './instalar.html',
+  './css/instalar.css',
+  './js/instalar.js',
+  './vendor/qrcode.js',
   './vendor/supabase.js',
   './fonts/ibm-plex-sans-latin-400-normal.woff2',
   './fonts/ibm-plex-sans-latin-500-normal.woff2',

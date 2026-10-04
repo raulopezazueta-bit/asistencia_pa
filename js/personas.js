@@ -326,6 +326,7 @@ export async function preparar(perfil, aviso) {
   ctx = { perfil, aviso };
   $('seccion-personas').hidden = false;
   $('menu-personas').hidden = false;
+  $('personas-guia').href = `instalar.html?${new URLSearchParams({ org: perfil.organizacion.nombre })}`;
   prepararAlta();
   await pintarPersonas();
 }

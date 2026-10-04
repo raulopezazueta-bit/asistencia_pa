@@ -10,6 +10,7 @@
     "prueba:completa": "bash supabase/tests/e2e/levantar_api_local.sh && playwright test; r=$?; bash supabase/tests/e2e/bajar_api_local.sh; exit $r"
   },
   "devDependencies": {
-    "@playwright/test": "1.56.1"
+    "@playwright/test": "1.56.1",
+    "jsqr": "1.4.0"
   }
 }

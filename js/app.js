@@ -67,6 +67,7 @@ function pintarPerfil(correo) {
   $('perfil-cambiar-org').hidden = estado.membresias.length < 2;
   $('perfil-panel').hidden = !['coordinador', 'admin'].includes(p.rol);
   $('inicio-panel').hidden = $('perfil-panel').hidden;
+  $('perfil-guia').href = `instalar.html?${new URLSearchParams({ org: p.organizacion.nombre })}`;
   pintarRecordatorio();
   $('aviso-sin-conexion').hidden = !estado.sinConexion;
   pintarFecha();
@@ -808,7 +809,28 @@ function pintarRecordatorio() {
   $('recordatorio-activar').hidden = p !== 'default';
 }
 
+// ---------- Instalar en el teléfono (HU-35) ----------
+// Android/Chrome ofrece instalar con un toque; en iPhone se usa la guía (Compartir › Agregar a inicio).
+let invitacionInstalar = null;
+function prepararInstalacion() {
+  const instalada = () => window.matchMedia?.('(display-mode: standalone)').matches || navigator.standalone === true;
+  window.addEventListener('beforeinstallprompt', (ev) => {
+    ev.preventDefault();
+    invitacionInstalar = ev;
+    $('perfil-instalar').hidden = instalada();
+  });
+  window.addEventListener('appinstalled', () => { invitacionInstalar = null; $('perfil-instalar').hidden = true; });
+  $('perfil-instalar').addEventListener('click', async () => {
+    if (!invitacionInstalar) return;
+    invitacionInstalar.prompt();
+    await invitacionInstalar.userChoice.catch(() => null);
+    invitacionInstalar = null;
+    $('perfil-instalar').hidden = true;
+  });
+}
+
 function iniciar() {
+  prepararInstalacion();
   $('version-app').textContent = CONFIG.VERSION_APP;
   pintarFecha();
   mostrarVista();
