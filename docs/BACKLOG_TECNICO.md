@@ -55,7 +55,7 @@ HU-15 pasa al Sprint 4.
 | ☑ v19 | HU-23 | Bandeja de revisión | Lista de eventos `revisar` con motivos y selfie (URL firmada) |
 | ☑ v20 | HU-31 | Reporte para autoridad | PDF por periodo y persona: datos de la organización, persona, cada día con inicio, fin, bloques, pausas, minutos efectivos y marcas de revisión/incidencia |
 | ☑ v21 | HU-16 | Mi registro | El asesor consulta y descarga su historial (CSV y PDF) |
-| ☐ | HU-15 | Recordatorio de salida | Notificación local si el bloque sigue abierto 30 min después del fin programado |
+| ☑ v22 | HU-15 | Recordatorio de salida | Notificación local si el bloque sigue abierto 30 min después del fin programado |
 
 ## Sprint 4 en adelante (referencia)
 

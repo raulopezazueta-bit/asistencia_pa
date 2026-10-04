@@ -13,7 +13,8 @@ import * as incidencias from './incidencias.js';
 import { cargarMiRegistro } from './reporte_datos.js';
 import { csvNomina } from './reporte.js';
 import * as api from './api.js';
-import { calcularEstado, resumenDelDia, formatoHoras, recorridoDelDia } from './reglas.js';
+import { calcularEstado, resumenDelDia, formatoHoras, recorridoDelDia, partesLocales } from './reglas.js';
+import * as recordatorio from './recordatorio.js';
 
 const VISTAS = ['inicio', 'visitas', 'historial', 'perfil'];
 const TITULOS = { inicio: 'Hola', visitas: 'Visitas a parques', historial: 'Historial', perfil: 'Perfil' };
@@ -65,6 +66,7 @@ function pintarPerfil(correo) {
   $('perfil-correo').textContent = correo || '—';
   $('perfil-cambiar-org').hidden = estado.membresias.length < 2;
   $('perfil-panel').hidden = !['coordinador', 'admin'].includes(p.rol);
+  pintarRecordatorio();
   $('aviso-sin-conexion').hidden = !estado.sinConexion;
   pintarFecha();
   mostrarVista();
@@ -189,6 +191,11 @@ function conectarFormularios() {
   $('catalogo-actualizar').addEventListener('click', () => sincronizarSitios({ forzar: true }));
   $('historial-solicitar').addEventListener('click', abrirCorreccion);
   conectarMiRegistro();
+  $('recordatorio-activar').addEventListener('click', async () => {
+    await recordatorio.pedirPermiso();
+    pintarRecordatorio();
+    if (recordatorio.permiso() === 'granted') pintarJornada();   // si ya hay un bloque olvidado, avisa de inmediato
+  });
   $('perfil-solicitar').addEventListener('click', abrirCorreccion);
   $('boton-principal').addEventListener('click', () => {
     const b = $('boton-principal');
@@ -441,6 +448,7 @@ async function pintarJornada() {
     const e = calcularEstado({ eventos, horario, ahora, zona, config });
     const r = resumenDelDia({ eventos, horario, ahora, zona, config });
     estado.dia = { e, r, horario, eventos };
+    recordatorio.revisar({ alertas: e.alertas, miembroId: perfil.miembroId, fecha: partesLocales(ahora, zona).fecha }).catch(() => {});
 
     // Tarjeta "Jornada de hoy"
     pintarFecha();
@@ -727,9 +735,31 @@ async function registrarServiceWorker() {
 }
 
 // Cada minuto se recalcula el estado (las alertas y las horas dependen de la hora).
+// En segundo plano no se repinta: solo se revisa el recordatorio de salida (HU-15) con lo ya cargado.
 setInterval(() => {
-  if (estado.perfil && document.visibilityState === 'visible' && !estado.checando) { enviarPendientes(); pintarJornada(); }
+  if (!estado.perfil || estado.checando) return;
+  if (document.visibilityState === 'visible') { enviarPendientes(); pintarJornada(); return; }
+  if (!estado.dia) return;
+  const ahora = new Date();
+  const zona = zonaHoraria();
+  const config = estado.perfil.organizacion.config;
+  const e = calcularEstado({ eventos: estado.dia.eventos, horario: estado.dia.horario, ahora, zona, config });
+  recordatorio.revisar({ alertas: e.alertas, miembroId: estado.perfil.miembroId, fecha: partesLocales(ahora, zona).fecha }).catch(() => {});
 }, 60_000);
+
+// ---------- Recordatorio de salida (HU-15): permiso de notificaciones ----------
+function pintarRecordatorio() {
+  const minutos = Number(estado.perfil?.organizacion.config?.recordatorio_salida_min ?? 30);
+  const p = recordatorio.permiso();
+  const textos = {
+    granted: `Activado: si un bloque sigue abierto ${minutos} minutos después de su hora de fin, el teléfono te avisa (con la app abierta o en segundo plano).`,
+    default: `Te avisamos si un bloque sigue abierto ${minutos} minutos después de su hora de fin. Necesitamos tu permiso para mostrar notificaciones.`,
+    denied: 'Las notificaciones están bloqueadas para esta app. Actívalas en los permisos del sitio en tu navegador. El aviso dentro de la app sigue funcionando.',
+    no_disponible: 'Este navegador no permite notificaciones. En iPhone, agrega la app a la pantalla de inicio (iOS 16.4 o más). El aviso dentro de la app sigue funcionando.'
+  };
+  $('recordatorio-estado').textContent = textos[p];
+  $('recordatorio-activar').hidden = p !== 'default';
+}
 
 function iniciar() {
   $('version-app').textContent = CONFIG.VERSION_APP;

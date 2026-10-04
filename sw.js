@@ -24,8 +24,9 @@
 // asis-2026-10-04-v19 · HU-23 bandeja de revisión: checadas marcadas con motivos, lugar y selfie (enlace de 60 s); coordinación valida u observa (requiere migración 0004).
 // asis-2026-10-04-v20 · HU-31 reportes: página para la autoridad (imprimir o guardar PDF) por periodo y persona, y CSV para nómina desde el panel.
 // asis-2026-10-04-v21 · HU-16 mi registro: la persona consulta su historial por periodo, lo imprime o guarda en PDF, lo descarga en CSV y ve sus checadas observadas.
+// asis-2026-10-04-v22 · HU-15 recordatorio de salida: notificación del teléfono (app abierta o en segundo plano) si un bloque sigue abierto tras su fin + recordatorio_salida_min; una vez por bloque y día.
 
-const CACHE_VERSION = 'asis-2026-10-04-v21';
+const CACHE_VERSION = 'asis-2026-10-04-v22';
 
 const CASCARON = [
   './',
@@ -57,6 +58,7 @@ const CASCARON = [
   './js/reporte.js',
   './js/reporte_datos.js',
   './js/reporte_pagina.js',
+  './js/recordatorio.js',
   './vendor/supabase.js',
   './fonts/ibm-plex-sans-latin-400-normal.woff2',
   './fonts/ibm-plex-sans-latin-500-normal.woff2',
@@ -103,6 +105,17 @@ self.addEventListener('fetch', (e) => {
       if (req.mode === 'navigate') return cache.match('./index.html');
       throw err;
     }
+  })());
+});
+
+// ---------- Recordatorio de salida (HU-15): tocar la notificación abre (o enfoca) la app ----------
+self.addEventListener('notificationclick', (e) => {
+  e.notification.close();
+  e.waitUntil((async () => {
+    const abiertas = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    const app = abiertas.find((c) => new URL(c.url).pathname.endsWith('/') || c.url.includes('index.html'));
+    if (app) { await app.focus(); return; }
+    await self.clients.openWindow(e.notification.data?.url || './');
   })());
 });
 
