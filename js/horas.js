@@ -84,3 +84,17 @@ export async function semana(perfil, ahora = new Date()) {
     sinConexion: oficial.sinConexion || delServidor.sinConexion
   };
 }
+
+// Medio día libre (HU-32): la actividad fuera de horario de la semana pasada da medio día libre esta semana.
+// Devuelve el número de medios días que tiene esta semana, o null sin señal.
+export async function mediosDiasEstaSemana(perfil, ahora = new Date()) {
+  const zona = perfil.organizacion.zonaHoraria;
+  const fechas = diasDeLaSemana(new Date(ahora.getTime() - 7 * 864e5), zona);
+  try {
+    const [dias, filasHorario] = await Promise.all([api.miJornadaDiaria(perfil.miembroId, fechas[0], fechas[6]), jornada.horarios(perfil)]);
+    const fuera = dias.filter((d) => d.minutos_efectivos > 0
+      && !horarioDelDia(filasHorario, new Date(`${String(d.fecha).slice(0, 10)}T12:00:00Z`), zona).length).length;
+    if (!fuera) return 0;
+    return perfil.organizacion.config?.medio_dia_libre_por === 'dia' ? fuera : 1;
+  } catch { return null; }
+}

@@ -8,6 +8,7 @@ import { TIPOS, ESTADOS, nombreChecada } from './incidencias.js';
 import { tableroDelDia } from './tablero.js';
 import { armarBandeja, MOTIVOS } from './bandeja.js';
 import { csvNomina } from './reporte.js';
+import { semanasNomina, csvSemanal, lunesDe } from './nomina.js';
 import { cargarReporte } from './reporte_datos.js';
 import * as personas from './personas.js';
 import { rangoDelDia, diasDeLaSemana, formatoHoras, partesLocales } from './reglas.js';
@@ -328,18 +329,16 @@ async function prepararReportes() {
     const q = new URLSearchParams({ desde: p.desde, hasta: p.hasta, ...(p.miembro ? { miembro: p.miembro } : {}) });
     window.open(`reporte.html?${q}`, '_blank');
   });
-  $('reporte-csv').addEventListener('click', async () => {
+  const descargar = (boton, preparar) => boton.addEventListener('click', async () => {
     const p = periodoElegido();
     if (p.error) return mostrar(p.error);
     mostrar('');
-    const boton = $('reporte-csv');
     boton.disabled = true;
     try {
-      const personas = await cargarReporte(estado.perfil, p.desde, p.hasta, p.miembro);
-      const blob = new Blob([csvNomina(personas, estado.perfil.organizacion.nombre)], { type: 'text/csv;charset=utf-8' });
+      const { contenido, nombre } = await preparar(p);
       const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = `jornada_${estado.perfil.organizacion.slug}_${p.desde}_${p.hasta}.csv`;
+      a.href = URL.createObjectURL(new Blob([contenido], { type: 'text/csv;charset=utf-8' }));
+      a.download = nombre;
       document.body.append(a);
       a.click();
       a.remove();
@@ -349,6 +348,19 @@ async function prepararReportes() {
     } finally {
       boton.disabled = false;
     }
+  });
+  const org = () => estado.perfil.organizacion;
+  descargar($('reporte-csv'), async (p) => ({
+    contenido: csvNomina(await cargarReporte(estado.perfil, p.desde, p.hasta, p.miembro), org().nombre),
+    nombre: `jornada_${org().slug}_${p.desde}_${p.hasta}.csv`
+  }));
+  // Semanal (HU-32): se carga también la semana anterior para saber si se ganó medio día libre
+  descargar($('reporte-semanal'), async (p) => {
+    const d = new Date(`${lunesDe(p.desde)}T12:00:00Z`);
+    d.setUTCDate(d.getUTCDate() - 7);
+    const personas = await cargarReporte(estado.perfil, d.toISOString().slice(0, 10), p.hasta, p.miembro);
+    const filas = semanasNomina(personas, { desde: p.desde, hasta: p.hasta, hoy: partesLocales(new Date(), zona()).fecha, config: org().config || {} });
+    return { contenido: csvSemanal(filas, org().nombre), nombre: `semanas_${org().slug}_${p.desde}_${p.hasta}.csv` };
   });
   try {
     const miembros = await api.miembrosDeOrganizacion(estado.perfil.organizacionId);

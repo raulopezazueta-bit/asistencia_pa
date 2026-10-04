@@ -112,11 +112,12 @@
             </label>
             <div class="reportes__botones">
               <button class="boton boton--lleno" type="submit" id="reporte-ver">Reporte para la autoridad (imprimir o PDF)</button>
-              <button class="boton" type="button" id="reporte-csv">Descargar CSV para nómina</button>
+              <button class="boton" type="button" id="reporte-csv">CSV por día</button>
+              <button class="boton" type="button" id="reporte-semanal">CSV semanal para nómina</button>
             </div>
             <p class="aviso aviso--critico reportes__error" id="reporte-error" role="alert" hidden></p>
           </form>
-          <p class="secundario chico">El reporte usa la vista oficial de horas (la misma del servidor) y señala revisiones, incidencias, bloques sin cerrar y días fuera de horario. El CSV trae una fila por persona y día; las horas extra por semana llegan en el Sprint 4.</p>
+          <p class="secundario chico">El reporte usa la vista oficial de horas (la misma del servidor) y señala revisiones, incidencias, bloques sin cerrar y días fuera de horario. El CSV por día trae una fila por persona y día. El semanal separa horas ordinarias de lunes a viernes (jornada de 40 h), horas fuera de horario y medios días libres ganados (la actividad fuera de horario se compensa con medio día libre la semana siguiente).</p>
         </section>
 
         <!-- Personas (HU-09, solo administración) -->

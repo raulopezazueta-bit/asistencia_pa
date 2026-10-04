@@ -667,7 +667,10 @@ async function pintarSemana() {
     const notas = [];
     if (s.dias.some((d) => d.porEnviar)) notas.push('"Por enviar": incluye checadas guardadas en el teléfono que aún no llegan al servidor.');
     if (s.dias.some((d) => d.abierta && !d.hoy)) notas.push('"Sin cerrar": un bloque quedó abierto y no suma horas; solicita una corrección.');
-    if (s.dias.some((d) => !d.futuro && !d.programados && d.minutos > 0)) notas.push('"Fuera de horario": actividades en días sin horario (p. ej. sábado).');
+    if (s.dias.some((d) => !d.futuro && !d.programados && d.minutos > 0)) notas.push('"Fuera de horario": actividades en días sin horario (p. ej. sábado); te dan medio día libre la próxima semana.');
+    const libres = await horas.mediosDiasEstaSemana(perfil);
+    if (estado.perfil !== perfil) return;
+    if (libres) notas.unshift(`Esta semana tienes ${libres === 1 ? 'medio día libre' : `${libres} medios días libres`} por tu actividad fuera de horario de la semana pasada (acuérdalo con coordinación).`);
     if (s.sinConexion) notas.push('Sin señal: se muestra la última información guardada.');
     $('semana-nota').hidden = !notas.length;
     $('semana-nota').textContent = notas.join(' ');

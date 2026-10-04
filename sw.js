@@ -30,8 +30,9 @@
 // asis-2026-10-04-v25 · HU-09 ajuste: si la función alta-persona no responde, el panel explica la causa (ya no dice "sin señal"); función en un solo archivo para publicarla más fácil.
 // asis-2026-10-04-v26 · HU-09 ajuste: la función alta-persona acepta las llaves nuevas de Supabase y tiene diagnóstico al abrir su dirección en el navegador.
 // asis-2026-10-04-v27 · HU-35 instalación: guía de una página con código QR (instalar.html, imprimible), botón "Instalar en este teléfono" en Perfil (Android) y enlaces a la guía.
+// asis-2026-10-04-v28 · HU-32 nómina semanal: CSV con horas ordinarias (40 h lunes a viernes), fuera de horario y medio día libre la semana siguiente; aviso del medio día libre en Historial.
 
-const CACHE_VERSION = 'asis-2026-10-04-v27';
+const CACHE_VERSION = 'asis-2026-10-04-v28';
 
 const CASCARON = [
   './',
@@ -69,6 +70,7 @@ const CASCARON = [
   './instalar.html',
   './css/instalar.css',
   './js/instalar.js',
+  './js/nomina.js',
   './vendor/qrcode.js',
   './vendor/supabase.js',
   './fonts/ibm-plex-sans-latin-400-normal.woff2',
