@@ -100,6 +100,13 @@ export function calcularEstado({ eventos, horario = [], ahora = new Date(), zona
 
   const base = conHorario ? horario.map((h) => h.bloque) : BLOQUES;
   const pendientes = base.filter((b) => !r.hechos.has(b) && !r.iniciados.has(b));
+  // Día sin horario (p. ej. sábado): "actividad fuera de horario" (HU-12b). Configurable por organización.
+  const permiteSinHorario = config.permitir_dias_sin_horario !== false;
+  const otraActividad = () => {
+    if (!permiteSinHorario || !pendientes.length) return null;
+    const b = pendientes.length === 1 ? pendientes[0] : null;
+    return { accion: 'inicio_bloque', bloque: b, texto: b ? `Iniciar otra actividad (${NOMBRE_BLOQUE[b]})` : 'Iniciar actividad fuera de horario' };
+  };
 
   if (r.pausaDesde) {
     estado = 'en_pausa';
@@ -107,6 +114,10 @@ export function calcularEstado({ eventos, horario = [], ahora = new Date(), zona
     // Salidas directas desde la pausa (HU-13): registran primero el regreso, con confirmación (ver pasosPara).
     if (r.bloqueAbierto) {
       secundarias.push({ accion: 'fin_bloque', bloque: r.bloqueAbierto, texto: `Terminar bloque de ${NOMBRE_BLOQUE[r.bloqueAbierto]}` });
+    } else if (!conHorario) {
+      const otra = otraActividad();
+      if (otra) secundarias.push(otra);
+      preguntarBloque = !!otra && !otra.bloque;
     } else if (pendientes.length) {
       siguienteBloque = conHorario ? bloqueQueToca(pendientes, horario, minutos) : (pendientes.length === 1 ? pendientes[0] : null);
       secundarias.push(siguienteBloque
@@ -127,11 +138,14 @@ export function calcularEstado({ eventos, horario = [], ahora = new Date(), zona
     secundarias.push({ accion: 'inicio_pausa', texto: 'Iniciar comida/pausa' });
   } else if (r.hechos.size === 0 && r.iniciados.size === 0) {
     estado = 'sin_jornada';
-  } else if (pendientes.length) {
+  } else if (conHorario && pendientes.length) {
     estado = 'entre_bloques';
   } else {
+    // Con horario: ya se cerraron los bloques programados. Sin horario: cada actividad cerrada cierra la jornada,
+    // con opción de iniciar otra del tipo que falte (el servidor agrupa por tipo de bloque en v_jornada_diaria).
     estado = 'jornada_cerrada';
     boton = null;
+    if (!conHorario) { const otra = otraActividad(); if (otra) secundarias.push(otra); }
     secundarias.push({ accion: 'solicitar_correccion', texto: 'Solicitar corrección' });
   }
 
@@ -145,7 +159,13 @@ export function calcularEstado({ eventos, horario = [], ahora = new Date(), zona
     }
   }
 
-  if (estado === 'sin_jornada' || estado === 'entre_bloques') {
+  if (estado === 'sin_jornada' && !conHorario) {
+    preguntarBloque = permiteSinHorario;
+    boton = permiteSinHorario
+      ? { texto: 'Iniciar actividad fuera de horario', accion: 'inicio_bloque', bloque: null, detalle: 'Hoy no tienes horario. Eliges escritorio o campo al checar' }
+      : null;
+    if (!permiteSinHorario) alertas.push({ tipo: 'sin_horario', texto: 'Hoy no tienes horario programado. Si vas a trabajar, pide a coordinación que lo autorice.' });
+  } else if (estado === 'sin_jornada' || estado === 'entre_bloques') {
     siguienteBloque = conHorario ? bloqueQueToca(pendientes, horario, minutos) : (pendientes.length === 1 ? pendientes[0] : null);
     preguntarBloque = !siguienteBloque;
     boton = siguienteBloque
@@ -157,7 +177,7 @@ export function calcularEstado({ eventos, horario = [], ahora = new Date(), zona
   }
 
   return {
-    estado, bloqueAbierto: r.bloqueAbierto, enSitio: r.sitio, siguienteBloque, preguntarBloque,
+    estado, fueraDeHorario: !conHorario, bloqueAbierto: r.bloqueAbierto, enSitio: r.sitio, siguienteBloque, preguntarBloque,
     boton, secundarias, alertas, anomalias: r.anomalias, pausaDesde: r.pausaDesde
   };
 }

@@ -77,11 +77,10 @@ test('retardo y jornada cerrada', async ({ page }) => {
   await expect(page.locator('#acciones-secundarias button')).toHaveText(['Solicitar corrección']);
 });
 
-test('sin horario cargado: pregunta qué bloque inicia', async ({ page }) => {
+test('día sin horario: actividad fuera de horario', async ({ page }) => {
   await abrirA(page, '10:00', { usuario: USUARIOS.coordinador });
-  await expect(textoBoton(page)).toHaveText('Iniciar bloque');
-  await expect(page.locator('#boton-principal-detalle')).toHaveText('¿Qué bloque inicias? Lo eliges al checar');
-  await expect(page.locator('#horas-programadas')).toHaveText('Sin horario cargado para hoy');
+  await expect(page.locator('#boton-principal-texto')).toHaveText('Iniciar actividad fuera de horario');
+  await expect(page.locator('#horas-programadas')).toHaveText('Hoy no tienes horario: lo que registres cuenta como fuera de horario');
 });
 
 test('sin señal: el estado del día se arma con el horario y los eventos guardados', async ({ page, context }) => {
@@ -107,9 +106,29 @@ test('contra la API local (PostgREST + RLS reales): lee horario y eventos del d�
   await entrar(page, CUENTAS.asesorPA);
   await expect(page.locator('#pantalla-app')).toBeVisible();
   await expect(page.locator('#horas-hoy')).toHaveText('4:00');
-  await expect(textoBoton(page)).toHaveText('Iniciar bloque de escritorio');   // sin horario el jueves: ofrece el otro bloque
+  // Sin horario el jueves (HU-12b): la actividad de campo cerró la jornada; se ofrece otra del tipo que falta
+  await expect(page.locator('#jornada-cerrada-titulo')).toHaveText('Actividad fuera de horario registrada');
+  await expect(page.locator('#acciones-secundarias button').first()).toHaveText('Iniciar otra actividad (escritorio)');
   await expect(filas(page).nth(0)).toContainText('16:00 – 20:00');
   // El lunes sí hay horario
   const filasHorario = await page.evaluate(async () => (await (await import('./js/almacen.js')).leerMeta('horarios')).filas.length);
   expect(filasHorario).toBe(2);
+});
+
+test('sábado (sin horario en lunes a viernes): actividad ocasional, se cierra sola y aparece "Fuera de horario"', async ({ page }) => {
+  const SAB = '2026-10-10';
+  await page.clock.setFixedTime(new Date(`${SAB}T12:05:00-07:00`));
+  await simularSupabase(page, { sitiosPA: 20, eventos: [
+    ev('inicio_bloque', `${SAB}T09:00`, { bloque: 'campo' }), ev('fin_bloque', `${SAB}T12:00`, { bloque: 'campo' })
+  ] });
+  await page.goto('index.html');
+  await entrar(page, USUARIOS.asesor);
+  await expect(page.locator('#jornada-cerrada-titulo')).toHaveText('Actividad fuera de horario registrada');
+  await expect(page.locator('#boton-principal')).toBeHidden();
+  await expect(page.locator('#acciones-secundarias button')).toHaveText(['Iniciar otra actividad (escritorio)', 'Solicitar corrección']);
+  await expect(page.locator('#horas-hoy')).toHaveText('3:00');
+  await page.locator('[data-pestana="historial"]').click();
+  await expect(page.locator(`#semana-dias [data-fecha="${SAB}"]`)).toContainText('Fuera de horario');
+  await expect(page.locator(`#semana-dias [data-fecha="${SAB}"]`)).toContainText('Sin horario');
+  await expect(page.locator('#semana-programadas')).toHaveText('de 40:00 h programadas');
 });

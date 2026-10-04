@@ -295,7 +295,9 @@ async function pintarJornada() {
     pintarFecha();
     $('horas-hoy').textContent = formatoHoras(r.minutosEfectivos);
     $('barra-hoy').style.width = r.minutosProgramados ? `${Math.min(100, (r.minutosEfectivos / r.minutosProgramados) * 100)}%` : '0';
-    $('horas-programadas').textContent = r.minutosProgramados ? `de ${formatoHoras(r.minutosProgramados)} h programadas` : 'Sin horario cargado para hoy';
+    $('horas-programadas').textContent = r.minutosProgramados
+      ? `de ${formatoHoras(r.minutosProgramados)} h programadas`
+      : 'Hoy no tienes horario: lo que registres cuenta como fuera de horario';
     const chip = $('calificacion-hoy');
     chip.hidden = eventos.length === 0;
     const [txt, clase] = ETIQUETA_CALIFICACION[r.calificacion];
@@ -324,6 +326,10 @@ async function pintarJornada() {
     const boton = $('boton-principal');
     boton.hidden = !e.boton;
     $('jornada-cerrada').hidden = e.estado !== 'jornada_cerrada';
+    $('jornada-cerrada-titulo').textContent = e.fueraDeHorario ? 'Actividad fuera de horario registrada' : 'Jornada cerrada';
+    $('jornada-cerrada-detalle').textContent = e.fueraDeHorario
+      ? 'Si vas a hacer otra actividad, iníciala abajo. Si algo quedó mal registrado, solicita una corrección.'
+      : 'Si algo quedó mal registrado, solicita una corrección.';
     if (e.boton) {
       boton.dataset.accion = e.boton.accion;
       boton.dataset.bloque = e.boton.bloque || '';
@@ -389,6 +395,7 @@ async function pintarSemana() {
       const der = document.createElement('div');
       der.className = 'dia__derecha';
       const chip = (texto, clase) => { const c = document.createElement('span'); c.className = `chip ${clase}`; c.textContent = texto; der.append(c); };
+      if (!d.futuro && !d.programados && d.minutos > 0) chip('Fuera de horario', '');
       if (d.porEnviar) chip('Por enviar', 'chip--aviso');
       if (d.abierta && !d.hoy) chip('Sin cerrar', 'chip--aviso');
       if (d.revisar) chip('Revisar', 'chip--critico');
@@ -402,6 +409,7 @@ async function pintarSemana() {
     const notas = [];
     if (s.dias.some((d) => d.porEnviar)) notas.push('"Por enviar": incluye checadas guardadas en el teléfono que aún no llegan al servidor.');
     if (s.dias.some((d) => d.abierta && !d.hoy)) notas.push('"Sin cerrar": un bloque quedó abierto y no suma horas; solicita una corrección.');
+    if (s.dias.some((d) => !d.futuro && !d.programados && d.minutos > 0)) notas.push('"Fuera de horario": actividades en días sin horario (p. ej. sábado).');
     if (s.sinConexion) notas.push('Sin señal: se muestra la última información guardada.');
     $('semana-nota').hidden = !notas.length;
     $('semana-nota').textContent = notas.join(' ');

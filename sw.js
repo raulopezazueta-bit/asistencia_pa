@@ -17,8 +17,9 @@
 // asis-2026-10-03-v12 · HU-20 teletrabajo (modalidad desde horarios; con validar_domicilio solo cuenta el domicilio propio) y pausas sin revisión de zona (requiere migración 0002).
 // asis-2026-10-03-v13 · HU-33 inalterabilidad verificada: pruebas de que nadie puede editar ni borrar eventos, bitácora ni selfies; sin cambios visibles.
 // asis-2026-10-04-v14 · HU-14 mis horas: horas del día y de la semana (vista oficial del servidor + checadas aún en el teléfono).
+// asis-2026-10-04-v15 · HU-12b jornada de lunes a viernes: los días sin horario (sábado) son "actividad fuera de horario".
 
-const CACHE_VERSION = 'asis-2026-10-04-v14';
+const CACHE_VERSION = 'asis-2026-10-04-v15';
 
 const CASCARON = [
   './',

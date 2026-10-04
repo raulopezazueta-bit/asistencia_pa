@@ -39,7 +39,7 @@ test('días de la semana: de lunes a domingo en la zona de la organización', ()
 
 test('semana: horas por día, total, día sin cerrar y días futuros', async ({ page, context }) => {
   await abrir(page, context);
-  await expect(page.locator('#semana-resumen')).toHaveText('Esta semana: 18:00 h de 56:00 h');
+  await expect(page.locator('#semana-resumen')).toHaveText('Esta semana: 18:00 h de 40:00 h');
   await page.locator('[data-pestana="historial"]').click();
   await expect(page.locator('#semana-total')).toHaveText('18:00');
   await expect(page.locator('#semana-rango')).toHaveText('5 oct – 11 oct');

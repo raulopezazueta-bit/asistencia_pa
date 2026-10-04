@@ -41,8 +41,14 @@ Leyenda: ☐ pendiente · ◐ en curso · ☑ terminado (al cerrar, poner la ver
 
 ## Sprint 3 · Visitas, panel e incidencias
 
+Decisiones del PO (4-oct-2026, sujetas a revisión con Parques Alegres): PDF con página de impresión del navegador
+(sin dependencias nuevas) + CSV para nómina; HU-15 = aviso en la app y notificación con la app abierta (Web Push con
+la app cerrada → Sprint 4); sábados libres y configurables (`permitir_dias_sin_horario = true`); si el tiempo aprieta,
+HU-15 pasa al Sprint 4.
+
 | Estado | ID | Historia | Criterios de aceptación |
 |---|---|---|---|
+| ☑ v15 | HU-12b | Jornada de lunes a viernes y sábados ocasionales | Día sin horario = "actividad fuera de horario" (elige tipo al checar; al cerrarla, jornada cerrada con opción de otra); sin alerta de olvido ni retardo; "Fuera de horario" en Mis horas; `permitir_dias_sin_horario` configurable |
 | ☐ | HU-24 | Visitas a parques | Llegada/salida por parque; llegar a otro parque cierra el anterior; pantalla Visitas §7.3 |
 | ☐ | HU-27 | Panel de coordinación | `panel.html` §8 (tarjetas + tabla del día) solo para `coordinador`/`admin` |
 | ☐ | HU-28/29 | Incidencias | Asesor solicita con motivo (≥ 5 caracteres); coordinación aprueba/rechaza; el evento corregido aparece con `origen = 'incidencia'` |

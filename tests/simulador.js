@@ -95,8 +95,8 @@ const json = (route, status, cuerpo, extra = {}) =>
 // Instala el simulador. Devuelve { registro, estado }: `registro` guarda las peticiones y
 // `estado.sinRed = true` hace que el simulador responda como si no hubiera señal
 // (context.setOffline no detiene a page.route, por eso se corta aquí también).
-// Horario ficticio del asesor de prueba: todos los días, jornada partida (escritorio en casa + campo).
-export const HORARIO_ASESOR = [1, 2, 3, 4, 5, 6, 7].flatMap((d) => [
+// Horario ficticio del asesor de prueba: lunes a viernes, jornada partida (escritorio en casa + campo).
+export const HORARIO_ASESOR = [1, 2, 3, 4, 5].flatMap((d) => [
   { dia_semana: d, bloque: 'escritorio', hora_inicio: '09:00:00', hora_fin: '13:00:00', modalidad: 'teletrabajo', vigente_desde: '2026-01-01', vigente_hasta: null },
   { dia_semana: d, bloque: 'campo', hora_inicio: '16:00:00', hora_fin: '20:00:00', modalidad: 'presencial', vigente_desde: '2026-01-01', vigente_hasta: null }
 ]);

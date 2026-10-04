@@ -160,23 +160,39 @@ test.describe('pausa abierta', () => {
   });
 });
 
-test.describe('sin horario cargado', () => {
-  test('sin eventos → pregunta qué bloque inicia', () => {
+test.describe('día sin horario (p. ej. sábado): actividad fuera de horario (HU-12b)', () => {
+  test('sin eventos → iniciar actividad fuera de horario, eligiendo el tipo al checar', () => {
     const e = estado([], '10:00', []);
     expect(e.estado).toBe('sin_jornada');
+    expect(e.fueraDeHorario).toBe(true);
     expect(e.preguntarBloque).toBe(true);
-    expect(e.boton).toMatchObject({ texto: 'Iniciar bloque', bloque: null, detalle: '¿Qué bloque inicias? Lo eliges al checar' });
+    expect(e.boton).toMatchObject({ texto: 'Iniciar actividad fuera de horario', bloque: null, detalle: 'Hoy no tienes horario. Eliges escritorio o campo al checar' });
   });
 
-  test('tras cerrar un bloque ofrece el otro; con ambos cerrados, jornada cerrada', () => {
-    const uno = [ev('inicio_bloque', '09:00', { bloque: 'escritorio' }), ev('fin_bloque', '13:00', { bloque: 'escritorio' })];
-    expect(estado(uno, '14:00', [])).toMatchObject({ estado: 'entre_bloques', boton: { texto: 'Iniciar bloque de campo' } });
-    const dos = [...uno, ev('inicio_bloque', '16:00', { bloque: 'campo' }), ev('fin_bloque', '20:00', { bloque: 'campo' })];
-    expect(estado(dos, '20:05', []).estado).toBe('jornada_cerrada');
+  test('al cerrar una actividad la jornada queda cerrada, con opción de iniciar otra del tipo que falta', () => {
+    const uno = [ev('inicio_bloque', '09:00', { bloque: 'campo' }), ev('fin_bloque', '12:00', { bloque: 'campo' })];
+    const e = estado(uno, '12:05', []);
+    expect(e.estado).toBe('jornada_cerrada');
+    expect(e.boton).toBeNull();
+    expect(e.secundarias).toEqual([
+      { accion: 'inicio_bloque', bloque: 'escritorio', texto: 'Iniciar otra actividad (escritorio)' },
+      { accion: 'solicitar_correccion', texto: 'Solicitar corrección' }
+    ]);
+    const dos = [...uno, ev('inicio_bloque', '13:00', { bloque: 'escritorio' })];
+    expect(estado(dos, '13:30', [])).toMatchObject({ estado: 'en_bloque', boton: { texto: 'Terminar bloque de escritorio' } });
+    const ambos = [...dos, ev('fin_bloque', '14:00', { bloque: 'escritorio' })];
+    expect(estado(ambos, '14:05', []).secundarias).toEqual([{ accion: 'solicitar_correccion', texto: 'Solicitar corrección' }]);
   });
 
-  test('sin horario no hay alerta de olvido (no hay hora de fin con qué comparar)', () => {
+  test('sin horario no hay alerta de olvido ni retardo (no hay hora programada)', () => {
     expect(estado([ev('inicio_bloque', '09:00', { bloque: 'campo' })], '23:00', []).alertas).toEqual([]);
+    expect(resumenDelDia({ eventos: [ev('inicio_bloque', '11:00', { bloque: 'campo' })], horario: [], ahora: a('12:00'), zona: ZONA }).calificacion).toBe('en_regla');
+  });
+
+  test('si la organización no permite días sin horario (permitir_dias_sin_horario = false): aviso y sin botón', () => {
+    const e = estado([], '10:00', [], { permitir_dias_sin_horario: false });
+    expect(e.boton).toBeNull();
+    expect(e.alertas).toEqual([{ tipo: 'sin_horario', texto: 'Hoy no tienes horario programado. Si vas a trabajar, pide a coordinación que lo autorice.' }]);
   });
 });
 
