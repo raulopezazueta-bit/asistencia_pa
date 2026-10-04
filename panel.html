@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="es-MX">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Panel de coordinación · Asistencia</title>
+  <meta name="description" content="Panel de coordinación del registro de jornada.">
+  <meta name="theme-color" content="#14503A">
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
+  <link rel="preload" href="fonts/ibm-plex-sans-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="fonts/ibm-plex-sans-latin-600-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="css/app.css">
+  <script src="vendor/supabase.js" defer></script>
+  <script type="module" src="js/panel.js"></script>
+</head>
+<body>
+  <div class="app app--panel">
+    <section class="pantalla-centrada" id="panel-cargando" aria-busy="true">
+      <img class="logo" src="assets/icon-192.png" alt="" width="96" height="96">
+      <p class="secundario">Cargando…</p>
+    </section>
+
+    <section class="pantalla-centrada" id="panel-sin-acceso" hidden>
+      <img class="logo" src="assets/icon-192.png" alt="" width="96" height="96">
+      <p id="panel-sin-acceso-texto">Esta página es solo para coordinación.</p>
+      <a class="boton boton--lleno" href="index.html">Ir a la app</a>
+    </section>
+
+    <div id="panel" hidden>
+      <header class="encabezado">
+        <div>
+          <p class="encabezado__org" id="panel-org">Panel de coordinación</p>
+          <h1 class="encabezado__titulo">Panel de coordinación</h1>
+          <p class="secundario chico" id="panel-persona"></p>
+        </div>
+        <a class="boton boton--chico" href="index.html">Ir a la app</a>
+      </header>
+
+      <nav class="panel__menu" aria-label="Secciones del panel">
+        <a href="#seccion-hoy">Hoy</a>
+        <a href="#seccion-revision">Revisión <span class="panel__cuenta" id="menu-revisar"></span></a>
+        <a href="#seccion-incidencias">Incidencias <span class="panel__cuenta" id="menu-incidencias"></span></a>
+        <a href="#seccion-reportes">Reportes</a>
+        <a href="#seccion-personas" id="menu-personas" hidden>Personas</a>
+      </nav>
+
+      <main class="contenido">
+        <div class="aviso" id="panel-aviso" role="status" hidden></div>
+
+        <!-- Tablero del día (HU-27) -->
+        <section class="vista panel__seccion" id="seccion-hoy" aria-labelledby="hoy-titulo">
+          <div class="panel__cabecera">
+            <h2 class="panel__titulo" id="hoy-titulo">Hoy · <span id="hoy-fecha"></span></h2>
+            <div class="panel__filtros">
+              <span class="secundario chico" id="hoy-actualizado" role="status"></span>
+              <button class="boton boton--chico" type="button" id="hoy-actualizar">Actualizar</button>
+            </div>
+          </div>
+          <div class="kpis">
+            <article class="tarjeta kpi"><p class="kpi__etiqueta">En jornada ahora</p><p class="kpi__valor"><span id="kpi-en-jornada">—</span><span class="kpi__de" id="kpi-total"></span></p><p class="kpi__detalle">con un bloque abierto (incluye pausa)</p></article>
+            <article class="tarjeta kpi"><p class="kpi__etiqueta">Checadas dentro de zona</p><p class="kpi__valor" id="kpi-zona">—</p><p class="kpi__detalle" id="kpi-zona-detalle">esta semana</p></article>
+            <article class="tarjeta kpi"><p class="kpi__etiqueta">Incidencias por resolver</p><p class="kpi__valor" id="kpi-incidencias">—</p><p class="kpi__detalle"><a href="#seccion-incidencias">Ver incidencias</a></p></article>
+            <article class="tarjeta kpi"><p class="kpi__etiqueta">Parques visitados hoy</p><p class="kpi__valor" id="kpi-parques">—</p><p class="kpi__detalle">distintos, por llegada o checada en el parque</p></article>
+          </div>
+          <article class="tarjeta">
+            <div class="tabla__marco">
+              <table class="tabla" id="tabla-hoy">
+                <caption class="solo-lector">Jornada de hoy por persona</caption>
+                <thead><tr><th scope="col">Persona</th><th scope="col">Entrada</th><th scope="col">Dónde está</th><th scope="col" class="tabla__num">Horas</th><th scope="col">Estado</th></tr></thead>
+                <tbody id="tabla-hoy-cuerpo"></tbody>
+              </table>
+            </div>
+            <p class="secundario chico" id="tabla-hoy-nota">Aparecen las personas con horario hoy o con alguna checada. "Sin checar": ya pasó la hora de entrada más la tolerancia.</p>
+            <p class="secundario chico">Alertas en tu teléfono aunque la app esté cerrada ("sin checar" y bloques sin cerrar): en la app, Perfil › Recordatorio de salida › Activar.</p>
+          </article>
+        </section>
+
+        <!-- Bandeja de revisión (HU-23) -->
+        <section class="vista panel__seccion" id="seccion-revision" aria-labelledby="bandeja-titulo">
+          <div class="panel__cabecera">
+            <h2 class="panel__titulo" id="bandeja-titulo">Bandeja de revisión</h2>
+            <div class="panel__filtros" role="tablist" aria-label="Filtrar checadas">
+              <button class="boton boton--chico" type="button" role="tab" id="bandeja-pendientes" aria-selected="true">Por revisar <span id="contador-revisar" class="mono"></span></button>
+              <button class="boton boton--chico" type="button" role="tab" id="bandeja-revisadas" aria-selected="false">Revisadas</button>
+            </div>
+          </div>
+          <p class="secundario chico">Checadas de los últimos 30 días que el sistema marcó para revisión. Validar u observar no cambia la checada: tu decisión queda registrada aparte. La selfie solo es evidencia (sin reconocimiento facial).</p>
+          <div class="panel__lista" id="bandeja-lista" aria-live="polite"></div>
+          <p class="secundario" id="bandeja-vacio" hidden></p>
+        </section>
+
+        <!-- Incidencias (HU-29) -->
+        <section class="vista panel__seccion" id="seccion-incidencias" aria-labelledby="incidencias-titulo">
+          <div class="panel__cabecera">
+            <h2 class="panel__titulo" id="incidencias-titulo">Incidencias</h2>
+            <div class="panel__filtros" role="tablist" aria-label="Filtrar incidencias">
+              <button class="boton boton--chico" type="button" role="tab" id="filtro-pendientes" aria-selected="true">Por resolver <span id="contador-pendientes" class="mono"></span></button>
+              <button class="boton boton--chico" type="button" role="tab" id="filtro-resueltas" aria-selected="false">Resueltas (30 días)</button>
+            </div>
+          </div>
+          <p class="secundario chico">Aprobar agrega la checada corregida (nada se borra). Rechazar exige explicar el motivo a la persona. Nadie puede resolver sus propias solicitudes.</p>
+          <div class="panel__lista" id="incidencias-lista" aria-live="polite"></div>
+          <p class="secundario" id="incidencias-vacio" hidden></p>
+        </section>
+        <!-- Reportes (HU-31) -->
+        <section class="vista panel__seccion" id="seccion-reportes" aria-labelledby="reportes-titulo">
+          <h2 class="panel__titulo" id="reportes-titulo">Reportes</h2>
+          <form class="tarjeta reportes" id="form-reporte" novalidate>
+            <label class="campo"><span class="campo__etiqueta">Desde</span><input class="campo__entrada mono" type="date" id="reporte-desde" required></label>
+            <label class="campo"><span class="campo__etiqueta">Hasta</span><input class="campo__entrada mono" type="date" id="reporte-hasta" required></label>
+            <label class="campo reportes__persona"><span class="campo__etiqueta">Persona</span>
+              <select class="campo__entrada" id="reporte-persona"><option value="">Todas las personas</option></select>
+            </label>
+            <div class="reportes__botones">
+              <button class="boton boton--lleno" type="submit" id="reporte-ver">Reporte para la autoridad (imprimir o PDF)</button>
+              <button class="boton" type="button" id="reporte-csv">CSV por día</button>
+              <button class="boton" type="button" id="reporte-semanal">CSV semanal para nómina</button>
+            </div>
+            <p class="aviso aviso--critico reportes__error" id="reporte-error" role="alert" hidden></p>
+          </form>
+          <p class="secundario chico">El reporte usa la vista oficial de horas (la misma del servidor) y señala revisiones, incidencias, bloques sin cerrar y días fuera de horario. El CSV por día trae una fila por persona y día. El semanal separa horas ordinarias de lunes a viernes (jornada de 40 h), horas fuera de horario y medios días libres ganados (la actividad fuera de horario se compensa con medio día libre la semana siguiente).</p>
+        </section>
+
+        <!-- Personas (HU-09, solo administración) -->
+        <section class="vista panel__seccion" id="seccion-personas" aria-labelledby="personas-titulo" hidden>
+          <div class="panel__cabecera">
+            <h2 class="panel__titulo" id="personas-titulo">Personas</h2>
+            <button class="boton boton--lleno boton--chico" type="button" id="personas-nueva">Dar de alta</button>
+          </div>
+          <p class="secundario chico">Alta con contraseña temporal (la app pide cambiarla al entrar), rol y horario. La baja no borra nada: la persona ya no entra y sus registros se conservan. Un horario nuevo rige desde hoy y el anterior queda en el historial.</p>
+          <div class="aviso aviso--ok" id="alta-resultado" role="status" hidden>
+            <div><p id="alta-resultado-texto"></p><p class="mono alta__contrasena" id="alta-resultado-contrasena"></p></div>
+          </div>
+          <form class="tarjeta formulario" id="form-alta" novalidate hidden>
+            <label class="campo"><span class="campo__etiqueta">Nombre completo</span><input class="campo__entrada" id="alta-nombre" autocomplete="off"></label>
+            <label class="campo"><span class="campo__etiqueta">Correo (con él entra a la app)</span><input class="campo__entrada" id="alta-correo" type="email" autocomplete="off" inputmode="email"></label>
+            <div class="campo__fila alta__fila">
+              <label class="campo"><span class="campo__etiqueta">Núm. de empleado (opcional)</span><input class="campo__entrada mono" id="alta-num" autocomplete="off"></label>
+              <label class="campo"><span class="campo__etiqueta">Rol</span>
+                <select class="campo__entrada" id="alta-rol"><option value="asesor">Asesoría</option><option value="coordinador">Coordinación</option><option value="admin">Administración</option></select>
+              </label>
+            </div>
+            <div class="campo">
+              <span class="campo__etiqueta">Contraseña temporal</span>
+              <div class="campo__fila"><input class="campo__entrada mono" id="alta-contrasena" autocomplete="off" aria-label="Contraseña temporal"><button class="boton boton--chico" type="button" id="alta-generar">Generar otra</button></div>
+            </div>
+            <div id="alta-horario"></div>
+            <p class="aviso aviso--critico" id="alta-error" role="alert" hidden></p>
+            <div class="incidencia__botones">
+              <button class="boton boton--lleno" type="submit" id="alta-guardar">Dar de alta</button>
+              <button class="boton" type="button" id="alta-cancelar">Cancelar</button>
+            </div>
+          </form>
+          <p class="secundario chico">Para instalar la app: <a id="personas-guia" href="instalar.html">guía de una página con código QR</a> (imprímela o compártela).</p>
+          <p class="secundario chico" id="personas-nota"></p>
+          <div class="panel__lista" id="personas-lista" aria-live="polite"></div>
+        </section>
+
+      </main>
+    </div>
+  </div>
+</body>
+</html>

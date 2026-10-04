@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="es-MX">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Cómo instalar · Asistencia</title>
+  <meta name="description" content="Guía de una página para instalar la app de registro de jornada en Android y iPhone.">
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
+  <link rel="stylesheet" href="css/app.css">
+  <link rel="stylesheet" href="css/instalar.css">
+  <script src="vendor/qrcode.js" defer></script>
+  <script type="module" src="js/instalar.js"></script>
+</head>
+<body class="guia-cuerpo">
+  <div class="guia__barra no-imprimir">
+    <a class="boton boton--chico" href="index.html">Ir a la app</a>
+    <button class="boton boton--lleno" type="button" id="guia-imprimir">Imprimir o guardar PDF</button>
+  </div>
+  <main class="guia">
+    <header class="guia__encabezado">
+      <img class="guia__logo" src="assets/icon-192.png" alt="" width="56" height="56">
+      <div>
+        <h1 class="guia__titulo">Instala la app de Asistencia</h1>
+        <p class="guia__org" id="guia-org">Registro electrónico de jornada</p>
+      </div>
+    </header>
+
+    <section class="guia__qr" aria-labelledby="guia-qr-titulo">
+      <div id="guia-codigo" class="guia__codigo" role="img" aria-label="Código QR con la dirección de la app"></div>
+      <div>
+        <h2 class="guia__subtitulo" id="guia-qr-titulo">1. Abre la app</h2>
+        <p>Apunta la <strong>cámara del teléfono</strong> al código y toca el enlace que aparece. O escribe esta dirección:</p>
+        <p class="guia__url mono" id="guia-url"></p>
+      </div>
+    </section>
+
+    <section class="guia__columnas" aria-label="Instalar según el teléfono">
+      <article class="guia__caja">
+        <h2 class="guia__subtitulo">2. Instálala · Android</h2>
+        <ol>
+          <li>Ábrela en <strong>Chrome</strong>.</li>
+          <li>Toca <strong>⋮</strong> (arriba a la derecha) › <strong>Instalar app</strong> o <strong>Agregar a la pantalla principal</strong>.</li>
+          <li>Desde ahora entra con el ícono verde <strong>Asistencia</strong>.</li>
+        </ol>
+      </article>
+      <article class="guia__caja">
+        <h2 class="guia__subtitulo">2. Instálala · iPhone</h2>
+        <ol>
+          <li>Ábrela en <strong>Safari</strong> (si se abre otro navegador, copia la dirección en Safari).</li>
+          <li>Toca <strong>Compartir</strong> (cuadro con flecha hacia arriba) › <strong>Agregar a inicio</strong>.</li>
+          <li>Desde ahora entra con el ícono <strong>Asistencia</strong>. Para recibir el recordatorio de salida se necesita iOS 16.4 o más.</li>
+        </ol>
+      </article>
+    </section>
+
+    <section class="guia__caja" aria-labelledby="guia-primera">
+      <h2 class="guia__subtitulo" id="guia-primera">3. La primera vez</h2>
+      <ol>
+        <li>Entra con tu <strong>correo</strong> y la <strong>contraseña temporal</strong> que te dio coordinación. La app te pedirá cambiarla por una tuya.</li>
+        <li>Cuando la app lo pida, <strong>permite la ubicación</strong>: solo se lee en el momento de checar, nunca en segundo plano.</li>
+        <li><strong>Permite la cámara</strong>: la selfie es solo evidencia de la checada, sin reconocimiento facial.</li>
+        <li>En <strong>Perfil › Recordatorio de salida</strong>, toca <strong>Activar recordatorio</strong> para que el teléfono te avise si olvidas checar salida.</li>
+      </ol>
+    </section>
+
+    <section class="guia__caja" aria-labelledby="guia-ayuda">
+      <h2 class="guia__subtitulo" id="guia-ayuda">Si algo pasa</h2>
+      <ul>
+        <li><strong>Sin señal en el parque:</strong> checa igual. Se guarda en el teléfono y se envía sola al volver la señal ("por enviar").</li>
+        <li><strong>"Hay una versión nueva":</strong> toca <strong>Actualizar</strong>; no se pierde nada.</li>
+        <li><strong>Olvidaste tu contraseña:</strong> pide a coordinación que te dé una temporal nueva.</li>
+        <li><strong>Negaste la ubicación o la cámara por error:</strong> actívalas en los ajustes del teléfono (permisos de Chrome o de Safari para la app).</li>
+        <li><strong>Algo quedó mal registrado:</strong> en la app, <strong>Solicitar corrección</strong>. Nada se borra; coordinación la revisa.</li>
+      </ul>
+    </section>
+  </main>
+</body>
+</html>

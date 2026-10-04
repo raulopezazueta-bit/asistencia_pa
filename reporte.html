@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="es-MX">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Registro de jornada · Reporte</title>
+  <meta name="description" content="Reporte del registro electrónico de jornada (LFT art. 132, fr. XXXIV).">
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
+  <link rel="stylesheet" href="css/app.css">
+  <link rel="stylesheet" href="css/reporte.css">
+  <script src="vendor/supabase.js" defer></script>
+  <script type="module" src="js/reporte_pagina.js"></script>
+</head>
+<body class="reporte-cuerpo">
+  <div class="reporte__barra no-imprimir">
+    <a class="boton boton--chico" href="panel.html">Volver al panel</a>
+    <button class="boton boton--lleno" type="button" id="reporte-imprimir" disabled>Imprimir o guardar PDF</button>
+  </div>
+  <p class="secundario reporte__estado no-imprimir" id="reporte-estado" role="status">Preparando el reporte…</p>
+  <main id="reporte" hidden>
+    <header class="reporte__encabezado">
+      <p class="reporte__norma">Registro electrónico de inicio y fin de jornada · Ley Federal del Trabajo, art. 132, fracción XXXIV</p>
+      <h1 class="reporte__org" id="reporte-org"></h1>
+      <p id="reporte-org-datos" class="reporte__datos"></p>
+      <dl class="reporte__meta">
+        <div><dt>Periodo</dt><dd id="reporte-periodo"></dd></div>
+        <div><dt>Emitido</dt><dd id="reporte-emitido"></dd></div>
+        <div><dt>Emitió</dt><dd id="reporte-emitio"></dd></div>
+        <div><dt>Zona horaria</dt><dd id="reporte-zona"></dd></div>
+      </dl>
+    </header>
+    <div id="reporte-personas"></div>
+    <footer class="reporte__pie">
+      <p>Horas efectivas: tiempo entre inicio y fin de cada bloque, menos las pausas dentro de un bloque; la comida entre bloques no resta y un bloque sin cerrar no suma.
+        La hora de cada checada la fija el servidor (o, si se registró sin señal, la del teléfono, marcada para revisión cuando corresponde).
+        Las checadas no se pueden modificar ni borrar: las correcciones se registran como incidencias aprobadas por coordinación y quedan señaladas.</p>
+    </footer>
+  </main>
+</body>
+</html>

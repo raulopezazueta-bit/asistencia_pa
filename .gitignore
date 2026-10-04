@@ -1,0 +1,12 @@
+# Datos internos y secretos: nunca al repositorio público
+*.env
+.env*
+datos/
+seed_*.sql
+*service_role*
+CONTEXTO_*.md
+node_modules/
+test-results/
+playwright-report/
+.DS_Store
+.herramientas/

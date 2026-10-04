@@ -1,0 +1,371 @@
+<!doctype html>
+<html lang="es-MX">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Asistencia · Registro de jornada</title>
+  <meta name="description" content="Registro electrónico de jornada laboral (LFT art. 132, fr. XXXIV).">
+  <meta name="theme-color" content="#14503A">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Asistencia">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+  <link rel="preload" href="fonts/ibm-plex-sans-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="fonts/ibm-plex-sans-latin-600-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="css/app.css">
+  <script src="vendor/supabase.js" defer></script>
+  <script type="module" src="js/app.js"></script>
+</head>
+<body>
+  <div class="app">
+    <!-- Cargando -->
+    <section class="pantalla-centrada" id="pantalla-cargando" aria-busy="true">
+      <img class="logo" src="assets/icon-192.png" alt="" width="96" height="96">
+      <p class="secundario">Cargando…</p>
+    </section>
+
+    <!-- Acceso (HU-08) -->
+    <section class="pantalla-centrada" id="pantalla-acceso" hidden>
+      <img class="logo" src="assets/icon-192.png" alt="" width="96" height="96">
+      <h1 class="encabezado__titulo">Registro de jornada</h1>
+      <p class="secundario centrado">Entra con el correo y la contraseña que te dio coordinación.</p>
+      <form class="formulario tarjeta" id="form-acceso" novalidate>
+        <div class="aviso aviso--critico" id="acceso-error" role="alert" hidden></div>
+        <label class="campo">
+          <span class="campo__etiqueta">Correo</span>
+          <input class="campo__entrada" id="acceso-correo" name="correo" type="email" autocomplete="username" inputmode="email" autocapitalize="off" spellcheck="false" required>
+        </label>
+        <label class="campo">
+          <span class="campo__etiqueta">Contraseña</span>
+          <span class="campo__fila">
+            <input class="campo__entrada" id="acceso-contrasena" name="contrasena" type="password" autocomplete="current-password" required>
+            <button class="boton boton--chico" type="button" id="acceso-ver" aria-pressed="false">Ver</button>
+          </span>
+        </label>
+        <button class="boton boton--lleno boton--ancho" type="submit" id="acceso-entrar">Entrar</button>
+      </form>
+    </section>
+
+    <!-- Selector de organización (HU-08) -->
+    <section class="pantalla-centrada" id="pantalla-organizacion" hidden>
+      <h1 class="encabezado__titulo">¿Con qué organización vas a registrar?</h1>
+      <p class="secundario centrado">Tu cuenta pertenece a varias organizaciones. Puedes cambiarla después en Perfil.</p>
+      <ul class="lista-opciones" id="lista-organizaciones"></ul>
+      <button class="boton boton--ancho" type="button" id="organizacion-salir">Cerrar sesión</button>
+    </section>
+
+    <!-- Cambiar contraseña (HU-09): obligatoria si entró con una contraseña temporal -->
+    <section class="pantalla-centrada" id="pantalla-contrasena" hidden>
+      <h1 class="encabezado__titulo">Cambia tu contraseña</h1>
+      <p class="secundario centrado" id="contrasena-explicacion">Elige una contraseña nueva de al menos 8 caracteres.</p>
+      <form class="tarjeta formulario" id="form-contrasena" novalidate>
+        <label class="campo"><span class="campo__etiqueta">Contraseña nueva</span><input class="campo__entrada" id="contrasena-nueva" type="password" autocomplete="new-password"></label>
+        <label class="campo"><span class="campo__etiqueta">Repítela</span><input class="campo__entrada" id="contrasena-repetir" type="password" autocomplete="new-password"></label>
+        <p class="aviso aviso--critico" id="contrasena-error" role="alert" hidden></p>
+        <button class="boton boton--lleno boton--ancho" type="submit" id="contrasena-guardar">Guardar contraseña</button>
+        <button class="boton boton--ancho" type="button" id="contrasena-cancelar">Cancelar</button>
+      </form>
+      <button class="boton boton--ancho" type="button" id="contrasena-salir">Cerrar sesión</button>
+    </section>
+
+    <!-- Checada (HU-17) -->
+    <section class="pantalla-checada" id="pantalla-checada" hidden>
+      <header class="encabezado">
+        <div>
+          <p class="encabezado__org">Confirmar checada</p>
+          <h1 class="encabezado__titulo" id="checada-titulo">Entrada</h1>
+        </div>
+      </header>
+      <div class="contenido" id="checada-captura">
+        <div class="vista" id="checada-elegir" hidden>
+          <p class="lista__titulo">¿Qué tipo de actividad inicias?</p>
+          <button class="opcion" type="button" data-bloque="escritorio"><span class="opcion__titulo">Bloque de escritorio</span><span class="opcion__detalle">Trabajo de oficina o en casa</span></button>
+          <button class="opcion" type="button" data-bloque="campo"><span class="opcion__titulo">Bloque de campo</span><span class="opcion__detalle">Recorrido por parques</span></button>
+        </div>
+        <figure class="tarjeta mapa" id="checada-mapa-tarjeta">
+          <svg id="checada-mapa" viewBox="0 0 320 180" role="img" aria-label="Mapa esquemático de tu ubicación y el sitio"></svg>
+          <figcaption class="mapa__pie" id="checada-mapa-pie">Buscando ubicación…</figcaption>
+        </figure>
+        <article class="tarjeta">
+          <ul class="lista">
+            <li class="lista__fila"><span>Sitio</span><span class="lista__valor" id="checada-sitio">—</span></li>
+            <li class="lista__fila"><span id="checada-distancia-etiqueta">Distancia</span><span class="lista__valor mono" id="checada-distancia">—</span></li>
+            <li class="lista__fila"><span>Precisión estimada</span><span class="lista__valor mono" id="checada-precision">—</span></li>
+            <li class="lista__fila"><span>Hora del teléfono</span><span class="lista__valor mono" id="checada-hora">—</span></li>
+          </ul>
+        </article>
+        <div class="vista" id="checada-sitio-elegir" hidden>
+          <button class="boton boton--ancho" type="button" id="checada-otro-parque">Elegir otro parque</button>
+          <div class="vista" id="checada-buscador" hidden>
+            <label class="campo"><span class="solo-lector">Buscar parque por nombre o clave</span>
+              <input class="campo__entrada" id="checada-buscar" type="search" placeholder="Buscar parque por nombre o clave" autocomplete="off">
+            </label>
+            <ul class="lista-opciones" id="checada-resultados"></ul>
+          </div>
+        </div>
+        <div class="aviso" id="checada-reloj" role="alert" hidden></div>
+        <div class="aviso" id="checada-zona" role="status" hidden></div>
+        <label class="campo" id="checada-justificacion-campo" hidden>
+          <span class="campo__etiqueta">Justificación (obligatoria)</span>
+          <textarea class="campo__entrada" id="checada-justificacion" rows="3" maxlength="500" placeholder="Ej.: reunión con el comité en la explanada, a una cuadra del parque"></textarea>
+        </label>
+        <article class="tarjeta selfie" id="checada-selfie" hidden>
+          <p class="tarjeta__etiqueta">Selfie de evidencia</p>
+          <div class="selfie__marco">
+            <video class="selfie__video" id="selfie-video" playsinline muted aria-label="Vista de la cámara frontal"></video>
+            <img class="selfie__foto" id="selfie-foto" alt="Tu selfie" hidden>
+          </div>
+          <p class="secundario chico" id="selfie-estado" role="status">Sin reconocimiento facial: la foto solo es evidencia.</p>
+          <div class="selfie__botones">
+            <button class="boton boton--lleno" type="button" id="selfie-tomar" hidden>Tomar selfie</button>
+            <button class="boton boton--lleno" type="button" id="selfie-usar" hidden>Usar esta foto</button>
+            <button class="boton" type="button" id="selfie-repetir" hidden>Repetir</button>
+            <label class="boton" id="selfie-archivo-boton" hidden>Abrir la cámara del teléfono
+              <input class="solo-lector" type="file" accept="image/*" capture="user" id="selfie-archivo">
+            </label>
+          </div>
+        </article>
+        <p class="secundario chico centrado" id="checada-progreso" role="status">Buscando ubicación…</p>
+        <button class="boton-principal" type="button" id="checada-confirmar" disabled>
+          <span class="boton-principal__texto" id="checada-confirmar-texto">Confirmar</span>
+        </button>
+        <button class="boton boton--ancho" type="button" id="checada-cancelar">Cancelar</button>
+      </div>
+      <div class="contenido" id="checada-resultado" hidden>
+        <article class="tarjeta resultado">
+          <p class="resultado__icono" id="checada-resultado-icono" aria-hidden="true"></p>
+          <h2 class="resultado__titulo" id="checada-resultado-titulo"></h2>
+          <p class="secundario" id="checada-resultado-detalle"></p>
+          <ul class="lista resultado__lista" id="checada-resultado-lista"></ul>
+        </article>
+        <button class="boton-principal" type="button" id="checada-listo"><span class="boton-principal__texto">Listo</span></button>
+      </div>
+    </section>
+
+    <!-- Solicitar corrección (HU-28) -->
+    <section class="pantalla-checada" id="pantalla-correccion" hidden>
+      <header class="encabezado">
+        <div>
+          <p class="encabezado__org">Incidencia</p>
+          <h1 class="encabezado__titulo">Solicitar corrección</h1>
+        </div>
+      </header>
+      <form class="contenido formulario" id="form-correccion" novalidate>
+        <p class="secundario chico">Nada de lo registrado se borra: coordinación revisa tu solicitud y, si la aprueba, se agrega la checada corregida.</p>
+        <fieldset class="campo campo--grupo">
+          <legend class="campo__etiqueta">¿Qué pasó?</legend>
+          <div class="lista-opciones" id="correccion-tipos">
+            <label class="opcion opcion--radio"><input type="radio" name="correccion-tipo" value="omision"><span class="opcion__titulo">Olvidé checar</span><span class="opcion__detalle">Falta una entrada, salida o pausa</span></label>
+            <label class="opcion opcion--radio"><input type="radio" name="correccion-tipo" value="correccion_hora"><span class="opcion__titulo">La hora quedó mal</span><span class="opcion__detalle">Checaste tarde o antes de tiempo</span></label>
+            <label class="opcion opcion--radio"><input type="radio" name="correccion-tipo" value="fuera_geocerca"><span class="opcion__titulo">Salió fuera de zona</span><span class="opcion__detalle">Estabas en el sitio, pero el GPS te ubicó fuera</span></label>
+            <label class="opcion opcion--radio"><input type="radio" name="correccion-tipo" value="otro"><span class="opcion__titulo">Otro</span><span class="opcion__detalle">Cualquier otra aclaración</span></label>
+          </div>
+        </fieldset>
+        <label class="campo" id="correccion-fecha-campo" hidden>
+          <span class="campo__etiqueta">Día</span>
+          <input class="campo__entrada mono" id="correccion-fecha" type="date">
+        </label>
+        <fieldset class="campo campo--grupo" id="correccion-original-campo" hidden>
+          <legend class="campo__etiqueta">¿Cuál checada?</legend>
+          <p class="secundario chico" id="correccion-original-estado" role="status"></p>
+          <div class="lista-opciones" id="correccion-originales"></div>
+        </fieldset>
+        <label class="campo" id="correccion-checada-campo" hidden>
+          <span class="campo__etiqueta">Checada que faltó</span>
+          <select class="campo__entrada" id="correccion-checada">
+            <option value="">Elige una opción</option>
+            <option value="inicio_bloque:escritorio">Inicio de bloque de escritorio</option>
+            <option value="fin_bloque:escritorio">Fin de bloque de escritorio</option>
+            <option value="inicio_bloque:campo">Inicio de bloque de campo</option>
+            <option value="fin_bloque:campo">Fin de bloque de campo</option>
+            <option value="inicio_pausa:">Inicio de comida/pausa</option>
+            <option value="fin_pausa:">Regreso de comida/pausa</option>
+          </select>
+        </label>
+        <label class="campo" id="correccion-hora-campo" hidden>
+          <span class="campo__etiqueta" id="correccion-hora-etiqueta">Hora correcta</span>
+          <input class="campo__entrada mono" id="correccion-hora" type="time">
+        </label>
+        <label class="campo">
+          <span class="campo__etiqueta">Motivo (obligatorio)</span>
+          <textarea class="campo__entrada" id="correccion-motivo" rows="3" maxlength="500" placeholder="Ej.: se me descargó el teléfono al salir del parque"></textarea>
+        </label>
+        <div class="aviso aviso--critico" id="correccion-error" role="alert" hidden></div>
+        <button class="boton-principal" type="submit" id="correccion-enviar"><span class="boton-principal__texto">Enviar solicitud</span></button>
+        <button class="boton boton--ancho" type="button" id="correccion-cancelar">Cancelar</button>
+      </form>
+      <div class="contenido" id="correccion-resultado" hidden>
+        <article class="tarjeta resultado">
+          <p class="resultado__icono" aria-hidden="true">✓</p>
+          <h2 class="resultado__titulo">Solicitud enviada</h2>
+          <p class="secundario" id="correccion-resultado-detalle">Coordinación la revisará. Verás la respuesta en Historial › Mis solicitudes.</p>
+        </article>
+        <button class="boton-principal" type="button" id="correccion-listo"><span class="boton-principal__texto">Listo</span></button>
+      </div>
+    </section>
+
+    <div class="pantalla-app" id="pantalla-app" hidden>
+    <header class="encabezado">
+      <div>
+        <p class="encabezado__org" id="org-nombre">Registro de jornada</p>
+        <h1 class="encabezado__titulo" id="titulo-vista">Hola</h1>
+        <p class="encabezado__envio"><span class="chip" id="indicador-envio" role="status" aria-live="polite">Todo enviado</span></p>
+      </div>
+      <span class="avatar" id="avatar" aria-hidden="true"></span>
+    </header>
+
+    <main class="contenido" id="contenido">
+      <div class="aviso" id="aviso-sin-conexion" role="status" hidden>Sin señal: trabajas con los datos guardados en el teléfono.</div>
+      <!-- Inicio -->
+      <section class="vista" id="vista-inicio" data-vista="inicio" aria-labelledby="titulo-vista">
+        <article class="tarjeta" aria-label="Jornada de hoy">
+          <p class="tarjeta__etiqueta">Jornada de hoy · <span id="fecha-hoy"></span></p>
+          <div class="horas">
+            <span class="horas__valor" id="horas-hoy">0:00</span>
+            <span class="horas__unidad">h</span>
+            <span class="chip horas__chip" id="calificacion-hoy" hidden></span>
+          </div>
+          <div class="barra" aria-hidden="true"><div class="barra__relleno" id="barra-hoy"></div></div>
+          <p class="secundario chico" id="horas-programadas">Sin horario cargado</p>
+          <p class="secundario chico" id="semana-resumen" hidden></p>
+        </article>
+
+        <article class="tarjeta" aria-label="Bloques del día">
+          <ul class="lista" id="lista-bloques">
+            <li class="lista__fila"><span class="secundario">Sin bloques registrados hoy</span></li>
+          </ul>
+        </article>
+
+        <div class="aviso" id="aviso-reloj" role="alert" hidden></div>
+        <div id="alertas-jornada" class="vista"></div>
+
+        <button class="boton-principal" id="boton-principal" type="button" disabled>
+          <span class="boton-principal__texto" id="boton-principal-texto">Inicia sesión para checar</span>
+          <span class="boton-principal__detalle" id="boton-principal-detalle"></span>
+        </button>
+        <article class="tarjeta centrado" id="jornada-cerrada" hidden>
+          <p class="lista__titulo" id="jornada-cerrada-titulo">Jornada cerrada</p>
+          <p class="secundario chico" id="jornada-cerrada-detalle">Si algo quedó mal registrado, solicita una corrección.</p>
+        </article>
+        <div class="acciones-secundarias" id="acciones-secundarias"></div>
+        <a class="boton boton--ancho" id="inicio-panel" href="panel.html" hidden>Abrir panel de coordinación</a>
+      </section>
+
+      <!-- Visitas -->
+      <section class="vista" id="vista-visitas" data-vista="visitas" hidden>
+        <article class="tarjeta" aria-labelledby="recorrido-titulo">
+          <p class="tarjeta__etiqueta" id="recorrido-titulo">Recorrido de hoy</p>
+          <ul class="lista" id="recorrido-lista"></ul>
+          <p class="secundario chico" id="recorrido-nota"></p>
+        </article>
+        <div class="acciones-secundarias" id="visitas-acciones"></div>
+
+        <article class="tarjeta catalogo" aria-labelledby="catalogo-titulo">
+          <div class="catalogo__cabecera">
+            <h2 class="tarjeta__etiqueta" id="catalogo-titulo">Parques en el teléfono</h2>
+            <button class="boton boton--chico" type="button" id="catalogo-actualizar">Actualizar</button>
+          </div>
+          <p class="secundario chico" id="catalogo-estado" role="status">Aún no se descargan los parques.</p>
+          <label class="campo">
+            <span class="solo-lector">Buscar parque por nombre, clave o colonia</span>
+            <input class="campo__entrada" id="catalogo-buscar" type="search" placeholder="Buscar por nombre, clave o colonia" autocomplete="off" enterkeyhint="search">
+          </label>
+          <ul class="lista" id="catalogo-resultados" aria-live="polite"></ul>
+        </article>
+      </section>
+
+      <!-- Historial -->
+      <section class="vista" id="vista-historial" data-vista="historial" hidden>
+        <article class="tarjeta" aria-labelledby="semana-titulo">
+          <p class="tarjeta__etiqueta" id="semana-titulo">Esta semana · <span id="semana-rango"></span></p>
+          <div class="horas">
+            <span class="horas__valor" id="semana-total">0:00</span>
+            <span class="horas__unidad">h</span>
+          </div>
+          <div class="barra" aria-hidden="true"><div class="barra__relleno" id="semana-barra"></div></div>
+          <p class="secundario chico" id="semana-programadas"></p>
+          <ul class="lista" id="semana-dias"></ul>
+          <p class="secundario chico" id="semana-nota" hidden></p>
+        </article>
+        <article class="tarjeta" aria-labelledby="solicitudes-titulo">
+          <p class="tarjeta__etiqueta" id="solicitudes-titulo">Mis solicitudes de corrección</p>
+          <ul class="lista" id="solicitudes-lista"></ul>
+          <p class="secundario chico" id="solicitudes-nota"></p>
+          <button class="boton boton--ancho" type="button" id="historial-solicitar" data-accion="solicitar_correccion">Solicitar corrección</button>
+        </article>
+        <article class="tarjeta" aria-labelledby="mi-registro-titulo">
+          <p class="tarjeta__etiqueta" id="mi-registro-titulo">Mi registro</p>
+          <p class="secundario chico">Tienes derecho a conocer tu registro de jornada. Consúltalo por periodo, imprímelo o guárdalo en PDF, o descárgalo en CSV (se abre en Excel).</p>
+          <form class="formulario mi-registro" id="form-mi-registro" novalidate>
+            <div class="campo__fila">
+              <label class="campo"><span class="campo__etiqueta">Desde</span><input class="campo__entrada mono" type="date" id="mi-registro-desde"></label>
+              <label class="campo"><span class="campo__etiqueta">Hasta</span><input class="campo__entrada mono" type="date" id="mi-registro-hasta"></label>
+            </div>
+            <button class="boton boton--lleno boton--ancho" type="submit" id="mi-registro-ver">Ver mi registro (imprimir o PDF)</button>
+            <button class="boton boton--ancho" type="button" id="mi-registro-csv">Descargar CSV</button>
+            <p class="aviso aviso--critico" id="mi-registro-error" role="alert" hidden></p>
+          </form>
+          <div id="observadas" hidden>
+            <p class="lista__titulo observadas__titulo">Checadas observadas por coordinación (últimos 30 días)</p>
+            <ul class="lista" id="observadas-lista"></ul>
+            <p class="secundario chico">Si no estás de acuerdo o hay que corregir algo, solicita una corrección.</p>
+          </div>
+        </article>
+      </section>
+
+      <!-- Perfil -->
+      <section class="vista" id="vista-perfil" data-vista="perfil" hidden>
+        <article class="tarjeta">
+          <ul class="lista">
+            <li class="lista__fila"><span>Nombre</span><span class="lista__valor" id="perfil-nombre">—</span></li>
+            <li class="lista__fila"><span>Organización</span><span class="lista__valor" id="perfil-organizacion">—</span></li>
+            <li class="lista__fila"><span>Rol</span><span class="lista__valor" id="perfil-rol">—</span></li>
+            <li class="lista__fila"><span>Correo</span><span class="lista__valor" id="perfil-correo">—</span></li>
+            <li class="lista__fila"><span>Versión de la app</span><span class="mono" id="version-app">—</span></li>
+          </ul>
+        </article>
+        <article class="tarjeta" aria-labelledby="recordatorio-titulo">
+          <p class="tarjeta__etiqueta" id="recordatorio-titulo">Recordatorio de salida</p>
+          <p class="secundario chico" id="recordatorio-estado" role="status"></p>
+          <button class="boton boton--lleno boton--ancho recordatorio__boton" type="button" id="recordatorio-activar" hidden>Activar recordatorio</button>
+          <p class="secundario chico recordatorio__push" id="recordatorio-push" role="status" hidden></p>
+          <button class="boton boton--ancho recordatorio__boton" type="button" id="recordatorio-probar" hidden>Probar aviso</button>
+        </article>
+        <button class="boton boton--lleno boton--ancho" type="button" id="perfil-instalar" hidden>Instalar en este teléfono</button>
+        <a class="boton boton--ancho" id="perfil-guia" href="instalar.html">Cómo instalar (guía con QR)</a>
+        <button class="boton boton--ancho" type="button" id="perfil-solicitar" data-accion="solicitar_correccion">Solicitar corrección</button>
+        <a class="boton boton--ancho" id="perfil-panel" href="panel.html" hidden>Abrir panel de coordinación</a>
+        <button class="boton boton--ancho" type="button" id="perfil-contrasena">Cambiar contraseña</button>
+        <button class="boton boton--ancho" type="button" id="perfil-cambiar-org" hidden>Cambiar de organización</button>
+        <button class="boton boton--tierra boton--ancho" type="button" id="perfil-salir">Cerrar sesión</button>
+      </section>
+    </main>
+
+    <nav class="nav" aria-label="Secciones">
+      <ul class="nav__lista">
+        <li><a class="nav__boton" href="#inicio" data-pestana="inicio" aria-current="page">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11.5 12 4l9 7.5"/><path d="M5 10v10h14V10"/></svg>
+          Inicio</a></li>
+        <li><a class="nav__boton" href="#visitas" data-pestana="visitas">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-6.1-7-11.5A7 7 0 0 1 19 9.5C19 14.9 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>
+          Visitas</a></li>
+        <li><a class="nav__boton" href="#historial" data-pestana="historial">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+          Historial</a></li>
+        <li><a class="nav__boton" href="#perfil" data-pestana="perfil">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+          Perfil</a></li>
+      </ul>
+    </nav>
+    </div>
+
+    <div class="actualizacion" id="aviso-actualizacion" role="status" hidden>
+      <span>Hay una versión nueva de la app.</span>
+      <button class="boton" type="button" id="boton-actualizar">Actualizar</button>
+    </div>
+  </div>
+</body>
+</html>
