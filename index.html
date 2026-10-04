@@ -145,6 +145,7 @@
           </div>
           <div class="barra" aria-hidden="true"><div class="barra__relleno" id="barra-hoy"></div></div>
           <p class="secundario chico" id="horas-programadas">Sin horario cargado</p>
+          <p class="secundario chico" id="semana-resumen" hidden></p>
         </article>
 
         <article class="tarjeta" aria-label="Bloques del día">
@@ -187,7 +188,18 @@
 
       <!-- Historial -->
       <section class="vista" id="vista-historial" data-vista="historial" hidden>
-        <article class="tarjeta"><p class="secundario">Aquí verás tus días anteriores y podrás descargar tu registro.</p></article>
+        <article class="tarjeta" aria-labelledby="semana-titulo">
+          <p class="tarjeta__etiqueta" id="semana-titulo">Esta semana · <span id="semana-rango"></span></p>
+          <div class="horas">
+            <span class="horas__valor" id="semana-total">0:00</span>
+            <span class="horas__unidad">h</span>
+          </div>
+          <div class="barra" aria-hidden="true"><div class="barra__relleno" id="semana-barra"></div></div>
+          <p class="secundario chico" id="semana-programadas"></p>
+          <ul class="lista" id="semana-dias"></ul>
+          <p class="secundario chico" id="semana-nota" hidden></p>
+        </article>
+        <article class="tarjeta"><p class="secundario">La descarga de tu registro (CSV y PDF) llega en el siguiente sprint.</p></article>
       </section>
 
       <!-- Perfil -->

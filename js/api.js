@@ -185,3 +185,19 @@ export async function subirSelfie(ruta, blob) {
   const { error } = await conLimite(cliente.storage.from('selfies').upload(ruta, blob, { upsert: false, contentType: blob.type, cacheControl: '31536000' }), 30000);
   if (error && !(String(error.statusCode) === '409' || /exists|duplicate/i.test(error.message || ''))) throw error;
 }
+
+// ---------- Mis horas (HU-14) ----------
+
+// Días de la persona desde la vista oficial v_jornada_diaria (la misma del reporte para la autoridad).
+export async function miJornadaDiaria(miembroId, desdeFecha, hastaFecha) {
+  if (navigator.onLine === false) throw errorSinSenal();
+  const { data, error } = await conLimite(cliente
+    .from('v_jornada_diaria')
+    .select('fecha, minutos_efectivos, minutos_pausa, jornada_abierta, bloque_inconsistente, con_revision')
+    .eq('miembro_id', miembroId)
+    .gte('fecha', desdeFecha)
+    .lte('fecha', hastaFecha)
+    .order('fecha'));
+  if (error) throw error;
+  return data || [];
+}

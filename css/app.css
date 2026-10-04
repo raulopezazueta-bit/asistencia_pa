@@ -178,6 +178,12 @@ textarea.campo__entrada { resize: vertical; min-height: 88px; }
 .opcion__titulo { font-weight: 600; font-size: 17px; }
 .opcion__detalle { font-size: 13px; color: var(--follaje); }
 
+/* ---------- Mis horas (semana) ---------- */
+.dia__derecha { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.dia__horas { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 15px; min-width: 3.2em; text-align: right; }
+.dia--hoy .lista__titulo { color: var(--verde); }
+.dia--futuro { opacity: .55; }
+
 /* ---------- Catálogo de parques ---------- */
 .catalogo { display: flex; flex-direction: column; gap: 12px; }
 .catalogo__cabecera { display: flex; align-items: center; justify-content: space-between; gap: 12px; }

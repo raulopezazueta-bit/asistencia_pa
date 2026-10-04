@@ -6,7 +6,7 @@ import { leerMeta, guardarMeta, leerTodo } from './almacen.js';
 import { horarioDelDia, rangoDelDia } from './reglas.js';
 
 // Horario: se pide al servidor; sin señal se usa la última copia de esta persona.
-async function horarios(perfil) {
+export async function horarios(perfil) {
   try {
     const filas = await api.misHorarios(perfil.miembroId);
     await guardarMeta('horarios', { miembroId: perfil.miembroId, filas, actualizados: new Date().toISOString() });

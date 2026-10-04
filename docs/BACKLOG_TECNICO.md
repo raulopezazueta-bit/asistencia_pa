@@ -37,7 +37,7 @@ Leyenda: ☐ pendiente · ◐ en curso · ☑ terminado (al cerrar, poner la ver
 | ☑ v11 | HU-13 | Pausas | Inicio/fin de comida; cierre automático confirmado al terminar bloque |
 | ☑ v12 | HU-20 | Bloque de escritorio en teletrabajo | Modalidad desde `horarios`; sin validación de zona mientras `validar_domicilio = false` |
 | ☑ v13 | HU-33 | Inalterabilidad verificada | Prueba e2e: intentar `update`/`delete` con la llave pública falla; la interfaz no ofrece editar ni borrar |
-| ☐ | HU-14 | Mis horas | Horas del día y de la semana desde `v_jornada_diaria` + eventos locales no enviados |
+| ☑ v14 | HU-14 | Mis horas | Horas del día y de la semana desde `v_jornada_diaria` + eventos locales no enviados |
 
 ## Sprint 3 · Visitas, panel e incidencias
 

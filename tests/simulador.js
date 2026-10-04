@@ -3,6 +3,7 @@
 // Imita las reglas RLS relevantes: cada usuario solo ve sus filas de `miembros`.
 
 import { sitioParaPunto, evaluarSitio } from '../js/geo.js';
+import { partesLocales, rangoDelDia, resumenDelDia } from '../js/reglas.js';
 
 export const URL_SUPABASE = 'https://kkaaaaifzyjnafvmfdqe.supabase.co';
 
@@ -258,6 +259,33 @@ export async function simularSupabase(page, { sitiosPA = 782, sitiosDemo = 3, ev
       if (desde) filas = filas.filter((e) => new Date(e.hora_efectiva) >= new Date(desde));
       if (hasta) filas = filas.filter((e) => new Date(e.hora_efectiva) < new Date(hasta));
       filas.sort((a, b) => new Date(a.hora_efectiva) - new Date(b.hora_efectiva));
+      return json(route, 200, filas);
+    }
+
+    // Vista v_jornada_diaria (aproximación con las reglas del cliente: solo bloques cerrados suman).
+    // La vista real se prueba contra la API local (tests/hu14_horas.spec.js).
+    if (url.pathname === '/rest/v1/v_jornada_diaria' && req.method() === 'GET') {
+      const u = usuarioDeToken(req);
+      if (!u) return json(route, 401, { code: 'PGRST301', message: 'JWT expired' });
+      const miembro = url.searchParams.get('miembro_id')?.slice(3);
+      if (!u.miembros.some((m) => m.id === miembro)) return json(route, 200, []);
+      const zona = 'America/Mazatlan';
+      const porFecha = new Map();
+      for (const e of eventos.filter((x) => x.miembro_id === miembro)) {
+        const f = partesLocales(e.hora_efectiva, zona).fecha;
+        if (!porFecha.has(f)) porFecha.set(f, []);
+        porFecha.get(f).push({ id: e.id, tipo: e.tipo, bloque: e.bloque, hora: e.hora_efectiva, estadoRevision: e.estado_revision });
+      }
+      const gte = url.searchParams.getAll('fecha').find((x) => x.startsWith('gte.'))?.slice(4);
+      const lte = url.searchParams.getAll('fecha').find((x) => x.startsWith('lte.'))?.slice(4);
+      const filas = [...porFecha.entries()]
+        .filter(([f, evs]) => (!gte || f >= gte) && (!lte || f <= lte) && evs.some((e) => e.bloque))
+        .map(([fecha, evs]) => {
+          const r = resumenDelDia({ eventos: evs, ahora: rangoDelDia(new Date(`${fecha}T12:00:00Z`), zona).desde, zona });
+          return { fecha, minutos_efectivos: r.minutosEfectivos, minutos_pausa: 0, bloque_inconsistente: false,
+            jornada_abierta: r.filas.some((x) => x.tipo === 'bloque' && x.estado === 'abierto'), con_revision: evs.some((e) => e.estadoRevision === 'revisar') };
+        })
+        .sort((a, b) => a.fecha.localeCompare(b.fecha));
       return json(route, 200, filas);
     }
 

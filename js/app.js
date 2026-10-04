@@ -7,6 +7,7 @@ import * as checada from './checada.js';
 import * as cola from './cola.js';
 import { guardarMeta } from './almacen.js';
 import * as reloj from './reloj.js';
+import * as horas from './horas.js';
 import { calcularEstado, resumenDelDia, formatoHoras } from './reglas.js';
 
 const VISTAS = ['inicio', 'visitas', 'historial', 'perfil'];
@@ -111,6 +112,7 @@ async function aplicar(r) {
       cola.limpiarRegistroLocal().catch(() => {});
       enviarPendientes({ forzar: true });
       pintarJornada();
+      pintarSemana();
       estado.recienEntro = false;
       return;
   }
@@ -173,7 +175,7 @@ function conectarFormularios() {
   window.addEventListener('online', () => { if (estado.perfil) revisarSesion(); });
   // Al volver a la app: si cambió el día, se descarga de nuevo el catálogo.
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible' && estado.perfil) { sincronizarSitios(); enviarPendientes(); pintarJornada(); }
+    if (document.visibilityState === 'visible' && estado.perfil) { sincronizarSitios(); enviarPendientes(); pintarJornada(); pintarSemana(); }
   });
   $('catalogo-actualizar').addEventListener('click', () => sincronizarSitios({ forzar: true }));
   $('boton-principal').addEventListener('click', () => {
@@ -239,7 +241,7 @@ async function iniciarChecada(accion, bloque) {
     await checada.abrir({
       perfil: estado.perfil, estadoDia: estado.dia.e, eventos: estado.dia.eventos, horario: estado.dia.horario,
       accion, bloque, mostrarPantalla,
-      alTerminar: () => { mostrarPantalla('app'); pintarJornada(); }
+      alTerminar: () => { mostrarPantalla('app'); pintarJornada(); pintarSemana(); }
     });
   } finally {
     estado.checando = false;
@@ -251,7 +253,7 @@ const misMiembros = () => estado.membresias.map((m) => m.miembroId);
 async function enviarPendientes({ forzar = false } = {}) {
   if (!estado.perfil) return;
   const enviados = await cola.enviarPendientes(misMiembros(), { forzar });
-  if (enviados) pintarJornada();
+  if (enviados) { pintarJornada(); pintarSemana(); }
   else pintarEnvio();
 }
 
@@ -349,6 +351,62 @@ async function pintarJornada() {
     if (repintar) { repintar = false; pintarJornada(); }
   });
   return pintando;
+}
+
+// ---------- Mis horas: semana (HU-14) ----------
+// Fechas cortas armadas a mano: el formato del navegador varía ("28 sep" / "28 de sep").
+const DIAS_CORTOS = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
+const MESES_CORTOS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+const diaMes = (fecha) => { const d = new Date(`${fecha}T12:00:00Z`); return `${d.getUTCDate()} ${MESES_CORTOS[d.getUTCMonth()]}`; };
+const fechaCorta = (fecha) => `${DIAS_CORTOS[new Date(`${fecha}T12:00:00Z`).getUTCDay()]} ${diaMes(fecha)}`;
+
+let pintandoSemana = null;
+async function pintarSemana() {
+  if (!estado.perfil) return;
+  if (pintandoSemana) return pintandoSemana;
+  pintandoSemana = (async () => {
+    const perfil = estado.perfil;
+    const s = await horas.semana(perfil, new Date());
+    if (estado.perfil !== perfil) return;
+    $('semana-rango').textContent = `${diaMes(s.dias[0].fecha)} – ${diaMes(s.dias[6].fecha)}`;
+    $('semana-total').textContent = formatoHoras(s.total);
+    $('semana-barra').style.width = s.totalProgramado ? `${Math.min(100, (s.total / s.totalProgramado) * 100)}%` : '0';
+    $('semana-programadas').textContent = s.totalProgramado ? `de ${formatoHoras(s.totalProgramado)} h programadas` : 'Sin horario cargado';
+    $('semana-resumen').hidden = false;
+    $('semana-resumen').textContent = `Esta semana: ${formatoHoras(s.total)} h${s.totalProgramado ? ` de ${formatoHoras(s.totalProgramado)} h` : ''}`;
+    $('semana-dias').replaceChildren(...s.dias.map((d) => {
+      const li = document.createElement('li');
+      li.className = `lista__fila${d.hoy ? ' dia--hoy' : ''}${d.futuro ? ' dia--futuro' : ''}`;
+      li.dataset.fecha = d.fecha;
+      const izq = document.createElement('div');
+      const t = document.createElement('p');
+      t.className = 'lista__titulo';
+      t.textContent = d.hoy ? `Hoy · ${fechaCorta(d.fecha)}` : fechaCorta(d.fecha);
+      const det = document.createElement('p');
+      det.className = 'lista__detalle';
+      det.textContent = d.programados ? `de ${formatoHoras(d.programados)} h programadas` : 'Sin horario';
+      izq.append(t, det);
+      const der = document.createElement('div');
+      der.className = 'dia__derecha';
+      const chip = (texto, clase) => { const c = document.createElement('span'); c.className = `chip ${clase}`; c.textContent = texto; der.append(c); };
+      if (d.porEnviar) chip('Por enviar', 'chip--aviso');
+      if (d.abierta && !d.hoy) chip('Sin cerrar', 'chip--aviso');
+      if (d.revisar) chip('Revisar', 'chip--critico');
+      const h = document.createElement('span');
+      h.className = 'dia__horas';
+      h.textContent = d.futuro ? '—' : formatoHoras(d.minutos);
+      der.append(h);
+      li.append(izq, der);
+      return li;
+    }));
+    const notas = [];
+    if (s.dias.some((d) => d.porEnviar)) notas.push('"Por enviar": incluye checadas guardadas en el teléfono que aún no llegan al servidor.');
+    if (s.dias.some((d) => d.abierta && !d.hoy)) notas.push('"Sin cerrar": un bloque quedó abierto y no suma horas; solicita una corrección.');
+    if (s.sinConexion) notas.push('Sin señal: se muestra la última información guardada.');
+    $('semana-nota').hidden = !notas.length;
+    $('semana-nota').textContent = notas.join(' ');
+  })().finally(() => { pintandoSemana = null; });
+  return pintandoSemana;
 }
 
 // ---------- Catálogo de sitios (HU-10) ----------
@@ -449,7 +507,7 @@ async function registrarServiceWorker() {
   let recargando = false;
   // El service worker avisa cuando envió pendientes en segundo plano
   navigator.serviceWorker.addEventListener('message', (ev) => {
-    if (ev.data?.tipo === 'PENDIENTES_ENVIADOS') pintarJornada();
+    if (ev.data?.tipo === 'PENDIENTES_ENVIADOS') { pintarJornada(); pintarSemana(); }
   });
   navigator.serviceWorker.addEventListener('controllerchange', () => {
     if (recargando || $('aviso-actualizacion').hidden) return;
@@ -467,7 +525,7 @@ function iniciar() {
   $('version-app').textContent = CONFIG.VERSION_APP;
   pintarFecha();
   mostrarVista();
-  window.addEventListener('hashchange', mostrarVista);
+  window.addEventListener('hashchange', () => { mostrarVista(); if (location.hash === '#historial') pintarSemana(); });
   conectarFormularios();
   registrarServiceWorker().catch((e) => console.warn('Service worker no registrado', e));
   revisarSesion();

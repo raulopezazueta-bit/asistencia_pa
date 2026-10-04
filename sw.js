@@ -16,8 +16,9 @@
 // asis-2026-10-03-v11 · HU-13 pausas: inicio y regreso de comida/pausa, terminar bloque o iniciar el siguiente desde la pausa con confirmación.
 // asis-2026-10-03-v12 · HU-20 teletrabajo (modalidad desde horarios; con validar_domicilio solo cuenta el domicilio propio) y pausas sin revisión de zona (requiere migración 0002).
 // asis-2026-10-03-v13 · HU-33 inalterabilidad verificada: pruebas de que nadie puede editar ni borrar eventos, bitácora ni selfies; sin cambios visibles.
+// asis-2026-10-04-v14 · HU-14 mis horas: horas del día y de la semana (vista oficial del servidor + checadas aún en el teléfono).
 
-const CACHE_VERSION = 'asis-2026-10-03-v13';
+const CACHE_VERSION = 'asis-2026-10-04-v14';
 
 const CASCARON = [
   './',
@@ -37,6 +38,7 @@ const CASCARON = [
   './js/checada.js',
   './js/camara.js',
   './js/reloj.js',
+  './js/horas.js',
   './vendor/supabase.js',
   './fonts/ibm-plex-sans-latin-400-normal.woff2',
   './fonts/ibm-plex-sans-latin-500-normal.woff2',

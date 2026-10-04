@@ -31,6 +31,14 @@ export function rangoDelDia(ahora, zona) {
   return { desde: medianoche(y, m, d), hasta: medianoche(y, m, d + 1), fecha };
 }
 
+// Fechas (AAAA-MM-DD) de lunes a domingo de la semana que contiene `ahora`, en la zona de la organización.
+export function diasDeLaSemana(ahora, zona) {
+  const { fecha, diaIso } = partesLocales(ahora, zona);
+  const sumar = (f, n) => { const d = new Date(`${f}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
+  const lunes = sumar(fecha, 1 - diaIso);
+  return Array.from({ length: 7 }, (_, i) => sumar(lunes, i));
+}
+
 const aMinutos = (hhmm) => { const [h, m] = String(hhmm).split(':').map(Number); return h * 60 + m; };
 const hhmm = (min) => `${Math.floor(min / 60)}:${String(min % 60).padStart(2, '0')}`;
 
